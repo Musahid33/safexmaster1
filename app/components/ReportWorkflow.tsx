@@ -34,6 +34,7 @@ type Props = {
   language: Language;
   onLanguageChange: (language: Language) => void;
   voiceEnabled: boolean;
+  onBack: () => void;
   onClose: () => void;
   onSubmit: (data: ReportSubmission) => Promise<void> | void;
 };
@@ -109,7 +110,7 @@ function descriptionConfig(type: ReportType, category: string | null): { label: 
   return { label: '📝 Description', placeholder: 'Describe the details...' };
 }
 
-export default function ReportWorkflow({ type, site, directory, language, onLanguageChange, voiceEnabled, onClose, onSubmit }: Props) {
+export default function ReportWorkflow({ type, site, directory, language, onLanguageChange, voiceEnabled, onBack, onClose, onSubmit }: Props) {
   const { T } = useI18n();
   const categories = CATEGORY_OPTIONS[type] ?? [];
   const [screen, setScreen] = useState<'category' | 'form'>(categories.length ? 'category' : 'form');
@@ -284,7 +285,7 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
     <div className={`modal report-modal report-workflow ${screen === 'category' ? 'category-screen' : ''}`}>
       <div className="modal-header report-workflow-header">
         <div className="workflow-heading">
-          {screen === 'form' && categories.length > 0 && <button type="button" className="workflow-back" aria-label={T('Back to categories')} onClick={() => { setScreen('category'); setError(''); }}><ArrowLeft size={17} /></button>}
+          <button type="button" className="workflow-back" aria-label={T(screen === 'form' && categories.length > 0 ? 'Back to categories' : 'Back')} onClick={() => { if (screen === 'form' && categories.length > 0) { setScreen('category'); setError(''); } else onBack(); }}><ArrowLeft size={17} aria-hidden="true" /></button>
           <div><span className="eyebrow">{site.name} · {T('SAFETY REPORT')}</span><h2 id="report-title">{screen === 'category' ? T('Select {type} category', { type: T(type) }) : displayTitle}</h2></div>
         </div>
         <button className="close-button" type="button" onClick={onClose} aria-label={T('Close report')}><X /></button>
@@ -299,6 +300,7 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
         </div>
         <button type="button" className="text-button category-back" onClick={onClose}>{T('Cancel')}</button>
       </div> : <form className="report-workflow-form" onSubmit={handleSubmit}>
+        <div className="offline-report-note" role="note">{T('Reports are saved on this device and are not sent to the server in this preview. Device storage is not encrypted by this app; anyone with access to this device may see the report. Clearing browser data can delete it.')}</div>
         <div className="site-context compact"><MapPin size={16} /><span>{T('Filed under')} <b>{site.name}</b>{category && <> · <b>{T(category)}</b></>}</span></div>
 
         {canReportAnonymously && <div className="anonymous-row report-anonymous-row"><div><b>🤫 {T('Submit anonymously')}</b><small>{T('Your name and Employee ID are omitted when anonymous is selected.')}</small></div><button className={`switch ${anonymous ? 'on' : ''}`} type="button" aria-label={T('Submit anonymously')} aria-pressed={anonymous} onClick={toggleAnonymous}><span /></button></div>}

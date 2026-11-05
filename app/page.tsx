@@ -1,13 +1,15 @@
 'use client';
 
 import {
-  AlertTriangle, ArrowLeft, Bell, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, CircleHelp, Clock3,
+  AlertTriangle, ArrowLeft, Bell, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, Clock3,
   Eye, FileText, FolderOpen, Globe2, Home, Lightbulb, LockKeyhole, MapPin,
   Monitor, Mic, Moon, MoreHorizontal, Palette, PhoneCall, Shield, ShieldAlert,
   Smartphone, Sun, UserRound, X, Zap, MessageSquare
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
-import { LIFE_SAVING_RULES } from '@/lib/life-saving-rules';
+import { forSelectedSite, siteStorageKey, validSavedSiteId } from '@/lib/site-selection';
+import { portalName } from '@/lib/portal-branding';
+import { pendingReports, queueReport, syncQueuedReports, type ReportSender } from '@/lib/offline-report-queue';
 import { SAFETY_ALERTS, SAFETY_ALERT_FILTERS, type SafetyAlert, type SafetyAlertCategory } from '@/lib/safety-alerts';
 import { APP_FEATURES, brandingFor } from '@/lib/app-config';
 import { telHref } from '@/lib/emergency';
@@ -27,20 +29,13 @@ import { AboutAppPage, AccountManagementPage, CompanyAboutPage, InstallAppPage, 
 import { APP_TIME_ZONE, formatHomeFeedDate, formatHomeFeedTime, type HomeFeedItem } from '@/lib/home-content';
 import type { Palette as PaletteName, ReportType, Site, ThemeMode } from '@/lib/types';
 
+// No server is connected in the UI preview. A future sender must use the queue ID
+// as an idempotency key and acknowledge only after the tenant-scoped report is saved.
+const REPORT_SENDER: ReportSender | null = null;
+
 type PageKey = 'home' | 'reports' | 'alerts' | 'events' | 'circulars' | 'updates' | 'training' | 'more' | 'appearance' | 'install' | 'library' | 'company' | 'account' | 'aboutApp';
 type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
 type UiMessage = { key: string; params?: Record<string, string | number>; report?: { type: ReportType; category: string | null } };
-
-const REPORT_KINDS: { type: ReportType | 'Feedback & Suggestion'; icon: typeof Zap; tone: string; labelKey?: string; prefix?: string; suffix?: string; desc: string }[] = [
-  { type: 'Near Miss', icon: Zap, tone: 'amber', labelKey: 'nearMiss', desc: 'Report something that almost caused injury or damage' },
-  { type: 'Hazard', icon: AlertTriangle, tone: 'red', labelKey: 'hazard', desc: 'Spot and report an accident risk or property damage' },
-  { type: 'Safety Observation', icon: Eye, tone: 'blue', labelKey: 'safetyObservation', suffix: '(UC / UA)', desc: 'Report or recognize a safety practice at work' },
-  { type: 'Unsafe Condition', icon: AlertTriangle, tone: 'amber', labelKey: 'uc', prefix: 'UC', desc: 'Report an unsafe condition at your work site' },
-  { type: 'Unsafe Act', icon: ShieldAlert, tone: 'red', labelKey: 'unsafeAct', prefix: 'UA', desc: 'Report an unsafe act or behaviour' },
-  { type: 'Feedback & Suggestion', icon: MessageSquare, tone: 'teal', desc: 'Share feedback or suggest an improvement' },
-  { type: 'Grievance', icon: MessageSquare, tone: 'purple', labelKey: 'grievance', desc: 'Raise a workplace concern for the safety team' },
-  { type: 'Speak Up', icon: CircleHelp, tone: 'purple', labelKey: 'speakUp', desc: 'Raise a concern anonymously if you prefer' },
-];
 
 type HomeReportTile = {
   id: string;
@@ -64,6 +59,14 @@ const HOME_REPORT_TILES: HomeReportTile[] = [
   { id: 'concern', opensConcernChooser: true, icon: Shield, tone: 'purple', titleEn: 'Grievances & Speak Up', titleHi: 'शिकायत / खुलकर बोलें', descEn: 'Anonymous option available', descHi: 'गुमनाम विकल्प उपलब्ध है' },
 ];
 
+// The direct picker follows the reference while reusing the home reporting actions.
+const DIRECT_REPORT_TILES: HomeReportTile[] = [
+  ...HOME_REPORT_TILES.slice(0, 3),
+  { id: 'unsafe-condition', reportType: 'Unsafe Condition', icon: AlertTriangle, tone: 'amber', labelKey: 'uc', descEn: 'Report an unsafe condition at your work site', descHi: 'असुरक्षित स्थिति बताएँ' },
+  { id: 'unsafe-act', reportType: 'Unsafe Act', icon: ShieldAlert, tone: 'red', labelKey: 'unsafeAct', descEn: 'Report an unsafe act or behaviour', descHi: 'असुरक्षित कार्य बताएँ' },
+  ...HOME_REPORT_TILES.slice(3),
+];
+
 function getUpcomingEventStatus(value: string): 'Today' | 'Tomorrow' | 'Upcoming' {
   const eventDate = new Date(value);
   const now = new Date();
@@ -80,17 +83,18 @@ function getUpcomingEventStatus(value: string): 'Today' | 'Tomorrow' | 'Upcoming
 
 export default function SafexHome() {
   const { language, setLanguage, T } = useI18n();
-  // Site list and employee directory come from the server: the real employee master when
-  // one is configured; otherwise lookups report unavailable.
-  const { ready: directoryReady, sites, directory, companyName, directoryMode, directoryReason, employeeCount, degraded } = useSafexBootstrap();
-  // Brand the page with whatever the server actually knows. Before it answers there is no
-  // name at all — an invented company is worse than a blank header for a second.
+  // The UI preview is disconnected; a future tenant source will provide company and sites.
+  const { ready: directoryReady, tenantId, sites, directory, companyName, directoryMode, directoryReason, employeeCount, degraded } = useSafexBootstrap();
+  // Derive the portal name only from the selected tenant's supplied company name.
   const brandCompanyName = (companyName ?? '').trim();
   const company = brandingFor(brandCompanyName);
+  const appName = portalName(companyName);
   const locale = LANGUAGE_LOCALE[language];
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [page, setPage] = useState<PageKey>('home');
-  const [recognitions, setRecognitions] = useState<RecognitionGalleryItem[]>([]);
+  const [accountReturnPage, setAccountReturnPage] = useState<PageKey>('home');
+  const [reportOrigin, setReportOrigin] = useState<'home' | 'picker'>('home');
+  const [recognitions, setRecognitions] = useState<RecognitionGalleryItem[] | null>(null);
   // Empty preview content for the vault and home feed.
   const [vaultDocuments, setVaultDocuments] = useState<VaultDocument[]>([]);
   const [contentFeed, setContentFeed] = useState<HomeFeedItem[]>([]);
@@ -104,6 +108,7 @@ export default function SafexHome() {
   const [themeMode, setThemeMode] = useState<ThemeMode>('system');
   const [palette, setPalette] = useState<PaletteName>('safex');
   const [reportType, setReportType] = useState<ReportType | null>(null);
+  const [pendingReportCount, setPendingReportCount] = useState<number | null>(null);
   const [reportPickerOpen, setReportPickerOpen] = useState(false);
   const [quickConcernChooserOpen, setQuickConcernChooserOpen] = useState(false);
   const [feedbackChooserOpen, setFeedbackChooserOpen] = useState(false);
@@ -144,6 +149,8 @@ export default function SafexHome() {
   const sosNumber = currentSite?.sosNumber?.trim() || null;
   const sosDialHref = telHref(sosNumber);
   const isSingleSite = sites.length === 1;
+  const selectedRules = currentSite?.lifeSavingRules ?? [];
+  const siteRecognitions = useMemo(() => recognitions === null ? null : forSelectedSite(recognitions, currentSite?.id), [recognitions, currentSite?.id]);
 
   useEffect(() => {
     try {
@@ -166,7 +173,7 @@ export default function SafexHome() {
       event.preventDefault();
       setInstallPrompt(event as InstallPromptEvent);
     };
-    const handleAppInstalled = () => setInstallMessage({ key: '{app} has been installed on this device.', params: { app: brandCompanyName || 'the company app' } });
+    const handleAppInstalled = () => setInstallMessage({ key: 'The app has been installed on this device.' });
     window.addEventListener('beforeinstallprompt', handleInstall);
     window.addEventListener('appinstalled', handleAppInstalled);
     return () => {
@@ -175,28 +182,43 @@ export default function SafexHome() {
     };
   }, []);
 
-  // Select the local preview site before displaying site-specific screens.
+  // A site choice is remembered on this device for this tenant, not shared across tenants.
   useEffect(() => {
     if (!directoryReady || siteReady) return;
-    try {
-      if (sites.length === 1) {
-        setSiteId(sites[0].id);
-        setSiteDraft(sites[0].id);
-      } else {
-        const savedSite = sessionStorage.getItem('safex-active-site');
-        if (savedSite && sites.some((site) => site.id === savedSite)) {
-          setSiteId(savedSite);
-          setSiteDraft(savedSite);
-        } else {
-          setSiteDialog(true);
-        }
-      }
-    } catch {
-      if (sites.length > 1) setSiteDialog(true);
-      else if (sites[0]) setSiteId(sites[0].id);
+    let savedSite: string | null = null;
+    try { if (tenantId) savedSite = validSavedSiteId(localStorage.getItem(siteStorageKey(tenantId)), sites); }
+    catch { /* Without storage, ask again on the next visit. */ }
+    if (savedSite) {
+      setSiteId(savedSite);
+      setSiteDraft(savedSite);
+    } else {
+      setSiteId('');
+      setSiteDraft('');
+      setSiteDialog(true);
     }
     setSiteReady(true);
-  }, [directoryReady, siteReady, sites]);
+  }, [directoryReady, siteReady, sites, tenantId]);
+
+  useEffect(() => {
+    if (!tenantId) { setPendingReportCount(null); return; }
+    let active = true;
+    let running = false;
+    async function refreshQueue() {
+      if (running) return;
+      running = true;
+      try {
+        if (REPORT_SENDER && navigator.onLine) await syncQueuedReports(tenantId!, REPORT_SENDER);
+        const entries = await pendingReports(tenantId!);
+        if (active) setPendingReportCount(entries.length);
+      } catch { if (active) setPendingReportCount(null); }
+      finally { running = false; }
+    }
+    void refreshQueue();
+    window.addEventListener('online', refreshQueue);
+    return () => { active = false; window.removeEventListener('online', refreshQueue); };
+  }, [tenantId]);
+
+  useEffect(() => { document.title = appName; }, [appName]);
 
   useEffect(() => {
     document.documentElement.dataset.mode = themeMode;
@@ -249,7 +271,7 @@ export default function SafexHome() {
 
   function openSitePicker(returnTo: PageKey = page) {
     setSiteReturnPage(returnTo);
-    setSiteDraft(siteId || sites[0]?.id || '');
+    setSiteDraft(siteId || '');
     setSiteDialog(true);
   }
 
@@ -258,10 +280,13 @@ export default function SafexHome() {
     if (!valid) return;
     setSiteId(valid.id);
     setSiteDraft(valid.id);
-    try { sessionStorage.setItem('safex-active-site', valid.id); } catch { /* no-op */ }
+    try { if (tenantId) localStorage.setItem(siteStorageKey(tenantId), valid.id); } catch { /* Choice lasts only until this page is closed. */ }
+    setLifeRuleOpen(false);
+    setLifeRuleSite(null);
+    setSosOpen(false);
     setSiteDialog(false);
     setPage(siteReturnPage);
-    setToast({ key: 'Selected site {site}. Site content is now filtered for this visit.', params: { site: valid.name } });
+    setToast({ key: 'Selected site {site}.', params: { site: valid.name } });
   }
 
   function openLifeRuleForSite(site: Site) {
@@ -277,6 +302,43 @@ export default function SafexHome() {
       return;
     }
     setReportType(type);
+  }
+
+  function reportTileTitle(item: HomeReportTile) {
+    return item.opensFeedbackChooser ? `${T('feedback')} & ${T('suggestion')}` : item.opensConcernChooser ? (language === 'en' ? 'Grievances & Speak Up' : `${T('grievance')} & ${T('speakUp')}`) : item.labelKey ? T(item.labelKey) : T(item.titleEn ?? '');
+  }
+
+  function selectReportTile(item: HomeReportTile) {
+    setReportOrigin(reportPickerOpen ? 'picker' : 'home');
+    setReportPickerOpen(false);
+    if (item.opensFeedbackChooser) setFeedbackChooserOpen(true);
+    else if (item.opensConcernChooser) setQuickConcernChooserOpen(true);
+    else if (item.reportType) openReport(item.reportType);
+  }
+
+  function backFromReport() {
+    const type = reportType;
+    setReportType(null);
+    if (type === 'Feedback' || type === 'Suggestion') setFeedbackChooserOpen(true);
+    else if (type === 'Grievance' || type === 'Speak Up') setQuickConcernChooserOpen(true);
+    else if (reportOrigin === 'picker') setReportPickerOpen(true);
+  }
+
+  function backFromChooser(kind: 'feedback' | 'concern') {
+    if (kind === 'feedback') setFeedbackChooserOpen(false);
+    else setQuickConcernChooserOpen(false);
+    if (reportOrigin === 'picker') setReportPickerOpen(true);
+  }
+
+  function renderReportTiles() {
+    return HOME_REPORT_TILES.map((item) => {
+      const Icon = item.icon;
+      const title = reportTileTitle(item);
+      return <button key={item.id} type="button" className={`report-tile ${item.opensConcernChooser ? 'report-tile-concern' : ''}`} aria-label={title} aria-haspopup={item.opensFeedbackChooser || item.opensConcernChooser ? 'dialog' : undefined} onClick={() => selectReportTile(item)}>
+        <span className={`tile-icon ${item.tone}`}><Icon size={26} strokeWidth={2.1} aria-hidden="true" /></span>
+        <span className="tile-copy"><b>{title}</b><small>{T(item.descEn)}</small></span>
+      </button>;
+    });
   }
 
   function openSafetyAlerts() {
@@ -311,8 +373,15 @@ export default function SafexHome() {
     if (deltaY > 110 && Math.abs(deltaX) < 85 && scrollIsAtTop) closeSafetyAlerts();
   }
 
-  async function submitReport(_data: ReportSubmission) {
-    throw new Error('UI preview only: reports cannot be submitted.');
+  async function submitReport(data: ReportSubmission) {
+    if (!tenantId || !currentSite) throw new Error('Reports cannot be saved until company and site data are connected.');
+    await queueReport(tenantId, currentSite.id, data);
+    setReportType(null);
+    setToast({ key: 'Saved on this device. Not sent to the server.' });
+    // Once a server sender is configured, retry when online; records remain until acknowledged.
+    if (REPORT_SENDER && navigator.onLine) await syncQueuedReports(tenantId, REPORT_SENDER);
+    try { setPendingReportCount((await pendingReports(tenantId)).length); }
+    catch { setPendingReportCount(null); }
   }
 
   async function requestPushPermission() {
@@ -352,21 +421,21 @@ export default function SafexHome() {
   const nextEventStatus = nextUpcomingEvent ? getUpcomingEventStatus(nextUpcomingEvent.date) : null;
 
   const siteSelectionDialog = siteReady && siteDialog ? (
-    <div className="overlay site-overlay" role="dialog" aria-modal="true" aria-labelledby="site-title"><div className="modal site-modal"><div className="modal-brand"><span className="brand-mark">{brandCompanyName.trim().charAt(0) || 'S'}</span><span><b>{brandCompanyName}</b><small>{T('Powered by')} Safex Safety</small></span><button className="close-button site-modal-close" type="button" onClick={() => setSiteDialog(false)} aria-label={T('Close site selection')}><X /></button></div><LanguageStrip language={language} onChange={setLanguage} className="site-language-strip" /><span className="eyebrow">{T('SITE SELECTION')}</span><h2 id="site-title">{T('sitePrompt')}</h2><p>{T('Select the site where you are working now. Home, reports and SOS will follow this site for this visit.')}</p>{sites.length === 0
-              ? <div className="inline-notice warning">{T('No site is configured for this deployment yet. Ask the Admin to verify the site and reload.')}</div>
-              : <><label className="field-label" htmlFor="site-select">{T('selectSite')}</label><select id="site-select" className="form-control" value={siteDraft} onChange={(e) => setSiteDraft(e.target.value)}>{sites.map((site) => <option key={site.id} value={site.id}>{site.name} · {site.region}</option>)}</select><button className="primary-button full-button" onClick={() => chooseSite(siteDraft)}>{T('continue')} <ChevronRight size={17} /></button></>}</div></div>
+    <div className="overlay site-overlay" role="dialog" aria-modal="true" aria-labelledby="site-title"><div className="modal site-modal">{(currentSite || sites.length === 0) && <div className="site-modal-actions"><button className="close-button" type="button" onClick={() => setSiteDialog(false)} aria-label={T('Close site selection')}><X /></button></div>}<LanguageStrip language={language} onChange={setLanguage} className="site-language-strip" /><span className="eyebrow">{T('SITE SELECTION')}</span><h2 id="site-title">{T('sitePrompt')}</h2><p>{T('Select your work site. Your choice will be remembered on this device and can be changed later.')}</p>{sites.length === 0
+              ? <div className="inline-notice warning">{T('No sites are connected in this UI preview.')}</div>
+              : <><label className="field-label" htmlFor="site-select">{T('selectSite')}</label><select id="site-select" className="form-control" value={siteDraft} onChange={(e) => setSiteDraft(e.target.value)}><option value="" disabled>{T('Select a site')}</option>{sites.map((site) => <option key={site.id} value={site.id}>{site.name} · {site.region}</option>)}</select><button className="primary-button full-button" type="button" disabled={!siteDraft} onClick={() => chooseSite(siteDraft)}>{T('continue')} <ChevronRight size={17} /></button></>}</div></div>
   ) : null;
 
   return (
     <div className="safex-app">
-      <div role="status" style={{ background: "#fff4d6", color: "#513900", textAlign: "center", padding: "8px 12px", fontSize: 13 }}>UI preview only · No live data or report submissions</div>
+      <div role="status" style={{ background: "#fff4d6", color: "#513900", textAlign: "center", padding: "8px 12px", fontSize: 13 }}>UI preview only · No live data or server report submissions{pendingReportCount ? ` · ${pendingReportCount} report(s) saved on this device, not sent` : ''}</div>
       <div className="site-header-shell">
         <header className="topbar">
           <div className="topbar-inner">
             <div className="topbar-brand-row">
-              <button className="brand-button" onClick={() => setPage('home')} aria-label={T('Safex Home')}>
-                <span className="topbar-company-logo" aria-hidden="true">{brandCompanyName.trim().charAt(0) || 'S'}</span>
-                <span className="topbar-company-name">{brandCompanyName}</span>
+              <button className="brand-button" onClick={() => setPage('home')} aria-label={T('Home')}>
+                <span className="topbar-company-logo"><img src="/icon-192.png" alt="Safex" /></span>
+                <span className="topbar-company-name">{appName}</span>
               </button>
             </div>
 
@@ -406,7 +475,7 @@ export default function SafexHome() {
                     onClick={() => setLanguageMenuOpen((open) => !open)}
                   >
                     <Globe2 size={20} aria-hidden="true" />
-                    <span className="header-language-label-compact">{T('Lang')}</span>
+                    <span className="header-language-label-compact" lang={language}>{LANGUAGES.find((item) => item.id === language)?.native ?? 'English'}</span>
                     <span className="header-language-label-wide">{T('Choose language')}</span>
                     <ChevronDown size={14} className="header-language-chevron" aria-hidden="true" />
                   </button>
@@ -426,41 +495,28 @@ export default function SafexHome() {
                   <Bell size={19} aria-hidden="true" />
                 </button>}
                 <button className="header-ui-button header-sos-button" onClick={() => setSosOpen(true)} aria-label={T('SOS emergency contact')}>SOS</button>
-                <button className="header-ui-button header-account-button" onClick={() => setPage('account')} aria-label={T('Account')}><UserRound size={19} aria-hidden="true" /></button>
+                <button className="header-ui-button header-account-button" onClick={() => { if (page !== 'account') setAccountReturnPage(page); setPage('account'); }} aria-label={T('Account')}><UserRound size={19} aria-hidden="true" /></button>
               </div>
             </div>
           </div>
         </header>
       </div>
       <main className="main-content">
+        {(page === 'reports' || page === 'training' || page === 'more' || (page === 'library' && !vaultCategoryId) || page === 'appearance') && <button type="button" className="more-page-back section-page-back" onClick={() => setPage(page === 'appearance' ? 'more' : 'home')}><ArrowLeft size={16} aria-hidden="true" /> {T('Back')}</button>}
+
         {page === 'home' && <>
           <section className="hero-strip">
             <div className="hero-copy"><span className="eyebrow">{T('SAFETY HOME')}</span><h1>{T('Safety Portal')}</h1><p>{T('Report hazards, find safety updates and learn from reports at your selected site.')}</p></div>
             <button className="life-saving-card" type="button" onClick={() => currentSite && openLifeRuleForSite(currentSite)} disabled={!currentSite} aria-haspopup="dialog">
               <span className="life-saving-icon"><ShieldAlert size={22} /></span>
-              <span className="life-saving-copy"><b>{T('LIFE SAVING RULE')}</b><small>West Bokaro (WBD) · 10 rules</small></span>
+              <span className="life-saving-copy"><b>{T('LIFE SAVING RULE')}</b><small>{currentSite?.name ?? T('Select site')} · {selectedRules.length ? T('{count} rules', { count: selectedRules.length }) : T('Rules not configured')}</small></span>
               <ChevronRight size={20} />
             </button>
           </section>
           <section className="section-block">
             <div className="section-heading"><div><span className="eyebrow">{T('TAKE ACTION')}</span><h2>{T('Report a safety concern')}</h2></div><span className="section-note">{T('No login needed to submit')}</span></div>
             <div className="report-grid">
-              {HOME_REPORT_TILES.map((item) => {
-                const Icon = item.icon;
-                const title = item.opensFeedbackChooser ? `${T('feedback')} & ${T('suggestion')}` : item.opensConcernChooser ? (language === 'en' ? 'Grievances & Speak Up' : `${T('grievance')} & ${T('speakUp')}`) : item.labelKey ? T(item.labelKey) : T(item.titleEn ?? '');
-                const description = T(item.descEn);
-                return <button
-                  key={item.id}
-                  type="button"
-                  className={`report-tile ${item.opensConcernChooser ? 'report-tile-concern' : ''}`}
-                  aria-label={title}
-                  aria-haspopup={item.opensFeedbackChooser || item.opensConcernChooser ? 'dialog' : undefined}
-                  onClick={() => item.opensFeedbackChooser ? setFeedbackChooserOpen(true) : item.opensConcernChooser ? setQuickConcernChooserOpen(true) : item.reportType ? openReport(item.reportType) : undefined}
-                >
-                  <span className={`tile-icon ${item.tone}`}><Icon size={26} strokeWidth={2.1} aria-hidden="true" /></span>
-                  <span className="tile-copy"><b>{title}</b><small>{description}</small></span>
-                </button>;
-              })}
+              {renderReportTiles()}
             </div>
           </section>
           <section className="section-block quick-section">
@@ -508,7 +564,7 @@ export default function SafexHome() {
           </section>}
           {APP_FEATURES.rewardWall && <section className="section-block reward-wall-section">
             <div className="section-heading"><div><span className="eyebrow">{T('RECOGNITION')}</span><h2 className="rewards-gallery-title"><span aria-hidden="true">🏆</span> {T('Rewards & Recognition Gallery')}</h2></div></div>
-            <RewardCarousel items={recognitions} />
+            <RewardCarousel items={siteRecognitions} siteSelected={Boolean(currentSite)} />
           </section>}
         </>}
 
@@ -542,7 +598,7 @@ export default function SafexHome() {
           onInstall={() => setPage('install')}
           onCompanyAbout={() => setPage('company')}
           onSearchEmployee={() => setProfileSearchOpen(true)}
-          onAccount={() => setPage('account')}
+          onAccount={() => { setAccountReturnPage('more'); setPage('account'); }}
           onAppearance={() => setPage('appearance')}
           onPrivacy={() => setMoreInfoKind('privacy')}
         />}
@@ -552,13 +608,13 @@ export default function SafexHome() {
           <div className="settings-card"><h2>{T('Colour theme')}</h2><p>{T('Colours apply to the header, home, report forms, cards and navigation.')}</p><div className="palette-grid">{([
             ['safex', 'Safex', '#0f2540', '#f5a623'], ['ocean', 'Ocean', '#123b5d', '#31b7c7'], ['forest', 'Forest', '#164b3a', '#70b77e'], ['contrast', 'High contrast', '#101820', '#ffd400']
           ] as [PaletteName, string, string, string][]).map(([id, name, primary, accent]) => <button key={id} className={`palette-choice ${palette === id ? 'selected' : ''}`} onClick={() => setPalette(id)}><span className="swatch-pair"><i style={{ background: primary }} /><i style={{ background: accent }} /></span><b>{T(name)}</b>{palette === id && <Check size={15} />}</button>)}</div></div>
-          <div className="preview-card"><div className="preview-header"><span className="preview-logo">S</span><b>Safex · {currentSite?.name ?? T('Site')}</b><span className="preview-sos">SOS</span></div><div className="preview-body"><span>{T('Home')}</span><span>{T('Report')}</span><span>{T('Safety Alerts')}</span></div></div>
+          <div className="preview-card"><div className="preview-header"><span className="preview-logo">S</span><b>{appName} · {currentSite?.name ?? T('Site')}</b><span className="preview-sos">SOS</span></div><div className="preview-body"><span>{T('Home')}</span><span>{T('Report')}</span><span>{T('Safety Alerts')}</span></div></div>
         </section>}
 
         {page === 'install' && <InstallAppPage company={company} canInstall={Boolean(installPrompt)} installMessage={installMessage} onInstall={installApp} onBack={() => setPage('more')} />}
 
         {page === 'company' && <CompanyAboutPage profile={null} onBack={() => setPage('more')} />}
-        {page === 'account' && <AccountManagementPage onBack={() => setPage('more')} />}
+        {page === 'account' && <AccountManagementPage onBack={() => setPage(accountReturnPage)} />}
         {page === 'aboutApp' && <AboutAppPage company={company} onBack={() => setPage('more')} onOpenInfo={setMoreInfoKind} />}
       </main>
 
@@ -572,10 +628,11 @@ export default function SafexHome() {
 
       {siteSelectionDialog}
 
-      {lifeRuleOpen && lifeRuleSite && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="life-rule-title"><div className="modal life-rule-modal"><div className="modal-header"><div><span className="eyebrow">{lifeRuleSite.name} · {T('LOCATION')}</span><h2 id="life-rule-title">{T('LIFE SAVING RULE')}</h2></div><button className="close-button" type="button" onClick={() => setLifeRuleOpen(false)} aria-label={T('Close Life Saving Rule')}><X /></button></div><div className="life-rule-site-banner"><span className="life-saving-icon"><ShieldAlert size={21} /></span><span><small>{T('SELECTED LOCATION')}</small><b>{lifeRuleSite.name}</b></span></div><p className="life-rule-intro" lang="en">Rules designed to protect your life! Please respect and adhere to these rules.</p><ol className="life-rule-list" lang="en">{LIFE_SAVING_RULES.map((rule, index) => <li key={rule.title}><span className="life-rule-number">{index + 1}</span><div><h3>{rule.title}</h3><p>{rule.text}</p></div></li>)}</ol><div className="life-rule-actions"><button className="primary-button" type="button" onClick={() => setLifeRuleOpen(false)}>{T('Close')}</button></div></div></div>}
+      {lifeRuleOpen && lifeRuleSite && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="life-rule-title"><div className="modal life-rule-modal"><div className="modal-header"><div><span className="eyebrow">{lifeRuleSite.name} · {T('LOCATION')}</span><h2 id="life-rule-title">{T('LIFE SAVING RULE')}</h2></div><button className="close-button" type="button" onClick={() => setLifeRuleOpen(false)} aria-label={T('Close Life Saving Rule')}><X /></button></div><div className="life-rule-site-banner"><span className="life-saving-icon"><ShieldAlert size={21} /></span><span><small>{T('SELECTED LOCATION')}</small><b>{lifeRuleSite.name}</b></span></div>{lifeRuleSite.lifeSavingRules?.length ? <ol className="life-rule-list">{lifeRuleSite.lifeSavingRules.map((rule, index) => <li key={`${index}-${rule.title}`}><span className="life-rule-number">{index + 1}</span><div><h3>{rule.title}</h3><p>{rule.text}</p></div></li>)}</ol> : <div className="inline-notice warning">{T('Life saving rules have not been configured for this site yet.')}</div>}<div className="life-rule-actions"><button className="primary-button" type="button" onClick={() => setLifeRuleOpen(false)}>{T('Close')}</button></div></div></div>}
 
       {feedbackChooserOpen && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="feedback-choice-title" onClick={(event) => { if (event.target === event.currentTarget) setFeedbackChooserOpen(false); }} onKeyDown={(event) => { if (event.key === 'Escape') setFeedbackChooserOpen(false); }}><div className="modal quick-concern-modal">
         <div className="modal-header"><div><span className="eyebrow">{T('SAFETY REPORT')}</span><h2 id="feedback-choice-title">{T('feedback')} & {T('suggestion')}</h2><p>{T('Choose what you would like to share.')}</p></div><button className="close-button" type="button" onClick={() => setFeedbackChooserOpen(false)} aria-label={T('Close report choices')}><X /></button></div>
+        <button type="button" className="report-chooser-back" onClick={() => backFromChooser('feedback')}><ArrowLeft size={16} aria-hidden="true" /> {T('Back')}</button>
         <div className="quick-concern-options">
           <button type="button" className="quick-concern-option" autoFocus onClick={() => { setFeedbackChooserOpen(false); openReport('Feedback'); }}><span className="tile-icon teal"><MessageSquare size={20} aria-hidden="true" /></span><span><b>{T('feedback')}</b><small>{T('Share your experience')}</small></span><ChevronRight size={18} aria-hidden="true" /></button>
           <button type="button" className="quick-concern-option" onClick={() => { setFeedbackChooserOpen(false); openReport('Suggestion'); }}><span className="tile-icon green"><Lightbulb size={20} aria-hidden="true" /></span><span><b>{T('suggestion')}</b><small>{T('Share a safer-work idea')}</small></span><ChevronRight size={18} aria-hidden="true" /></button>
@@ -584,6 +641,7 @@ export default function SafexHome() {
 
       {quickConcernChooserOpen && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="quick-concern-title"><div className="modal quick-concern-modal">
         <div className="modal-header"><div><span className="eyebrow">{T('SAFETY REPORT')}</span><h2 id="quick-concern-title">{T('Grievance or Speak Up?')}</h2><p>{T('Choose a path. Both options can be anonymous.')}</p></div><button className="close-button" type="button" onClick={() => setQuickConcernChooserOpen(false)} aria-label={T('Close report choices')}><X /></button></div>
+        <button type="button" className="report-chooser-back" onClick={() => backFromChooser('concern')}><ArrowLeft size={16} aria-hidden="true" /> {T('Back')}</button>
         <div className="quick-concern-options">
           <button type="button" className="quick-concern-option" onClick={() => { setQuickConcernChooserOpen(false); openReport('Grievance'); }}><span className="tile-icon purple"><MessageSquare size={20} /></span><span><b>{T('grievance')}</b><small>{T('Anonymous option available')}</small></span><ChevronRight size={18} /></button>
           <button type="button" className="quick-concern-option" onClick={() => { setQuickConcernChooserOpen(false); openReport('Speak Up'); }}><span className="tile-icon purple"><Shield size={20} /></span><span><b>{T('speakUp')}</b><small>{T('Anonymous option available')}</small></span><ChevronRight size={18} /></button>
@@ -661,20 +719,25 @@ export default function SafexHome() {
         <div className="modal report-picker-modal">
           <div className="report-picker-handle" aria-hidden="true"><span /></div>
           <div className="modal-header report-picker-header">
+            <button type="button" className="workflow-back" onClick={() => setReportPickerOpen(false)} aria-label={T('Back')}><ArrowLeft size={20} aria-hidden="true" /></button>
             <h2 id="report-picker-title">{T('What would you like to report?')}</h2>
             <button className="close-button report-picker-close" type="button" onClick={() => setReportPickerOpen(false)} aria-label={T('Close report types')}><X /></button>
           </div>
           <div className="report-picker-grid">
-            {REPORT_KINDS.map(({ type, icon: Icon, tone, labelKey, prefix, suffix, desc }) => <button key={type} type="button" className="report-picker-option" aria-label={type === 'Feedback & Suggestion' ? `${T('feedback')} & ${T('suggestion')}` : T(type)} onClick={() => { setReportPickerOpen(false); if (type === 'Feedback & Suggestion') setFeedbackChooserOpen(true); else openReport(type); }}>
-              <span className={`tile-icon ${tone}`}><Icon size={24} aria-hidden="true" /></span>
-              <span className="report-picker-copy"><b>{prefix ? `${prefix} · ` : ''}{type === 'Feedback & Suggestion' ? `${T('feedback')} & ${T('suggestion')}` : labelKey ? T(labelKey) : T(type)}{suffix ? ` ${suffix}` : ''}</b><small className="sr-only">{T(desc)}</small></span>
-              {APP_FEATURES.voiceReporting && <span className="report-picker-voice" aria-hidden="true"><Mic size={22} /></span>}
-            </button>)}
+            {DIRECT_REPORT_TILES.map((item) => {
+              const Icon = item.icon;
+              const title = `${item.id === 'unsafe-condition' ? 'UC · ' : item.id === 'unsafe-act' ? 'UA · ' : ''}${reportTileTitle(item)}${item.id === 'observation' ? ' (UC / UA)' : ''}`;
+              return <button key={item.id} type="button" className="report-picker-option" aria-label={title} aria-haspopup={item.opensFeedbackChooser || item.opensConcernChooser ? 'dialog' : undefined} onClick={() => selectReportTile(item)}>
+                <span className={`tile-icon ${item.tone}`}><Icon size={24} aria-hidden="true" /></span>
+                <span className="report-picker-copy"><b>{title}</b><small className="sr-only">{T(item.descEn)}</small></span>
+                {APP_FEATURES.voiceReporting && <span className="report-picker-voice" aria-hidden="true"><Mic size={22} /></span>}
+              </button>;
+            })}
           </div>
         </div>
       </div>}
 
-      {reportType && currentSite && <ReportWorkflow key={`${reportType}-${currentSite.id}`} type={reportType} site={currentSite} directory={directory} language={language} onLanguageChange={setLanguage} voiceEnabled={APP_FEATURES.voiceReporting} onClose={() => setReportType(null)} onSubmit={submitReport} />}
+      {reportType && currentSite && <ReportWorkflow key={`${reportType}-${currentSite.id}`} type={reportType} site={currentSite} directory={directory} language={language} onLanguageChange={setLanguage} voiceEnabled={APP_FEATURES.voiceReporting} onBack={backFromReport} onClose={() => setReportType(null)} onSubmit={submitReport} />}
       {profileSearchOpen && <ProfileSearchDialog site={currentSite} companyName={companyName} directory={directory} directoryMode={directoryMode} directoryReason={directoryReason} employeeCount={employeeCount} onClose={() => setProfileSearchOpen(false)} />}
       {moreInfoKind && <MoreInfoDialog kind={moreInfoKind} company={company} onClose={() => setMoreInfoKind(null)} onLogin={() => { setMoreInfoKind(null); setToast({ key: 'Login is unavailable in the UI preview.' }); }} />}
 

@@ -3,7 +3,7 @@ import { I18nProvider } from './components/I18nProvider';
 import './globals.css';
 
 // Static application identity for the UI preview.
-const appName = 'Safex Safety';
+const appName = 'Safety Portal';
 
 export const metadata: Metadata = {
   title: appName,

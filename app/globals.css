@@ -354,11 +354,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .site-overlay { z-index: 70; }
 .modal { width: min(100%, 560px); max-height: min(90vh, 900px); overflow-y: auto; border: 1px solid var(--line); border-radius: 19px; background: var(--surface); color: var(--text); padding: 20px; box-shadow: 0 22px 70px rgba(0,0,0,.25); }
 .site-modal { width: min(100%, 450px); padding: 24px; }
-.modal-brand { display: flex; align-items: center; gap: 9px; margin-bottom: 20px; }
-.modal-brand > span:nth-child(2) { display: grid; gap: 2px; }
-.site-modal-close { margin-left: auto; }
-.modal-brand b { font-size: 15px; }
-.modal-brand small { color: var(--muted); font-size: 10px; }
+.site-modal-actions { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 .modal h2 { margin: 5px 0 8px; font-size: 20px; letter-spacing: -.02em; }
 .modal > p { color: var(--muted); font-size: 12px; line-height: 1.55; }
 .site-modal > p { margin: 0 0 16px; }
@@ -2323,17 +2319,14 @@ textarea.form-control { min-height: 128px; }
   .vault-viewer iframe { height: 96vh; min-height: 0; }
 }
 
-/* Center the final concern card without changing its width relative to its neighbours. */
+/* Give the combined concern option more room while keeping it centered. */
 .report-grid > .report-tile-concern:last-child {
   grid-column: 1 / -1;
   justify-self: center;
-  width: calc((100% - 3 * var(--space-2)) / 4);
+  width: calc((100% - var(--space-2)) / 2);
 }
 @media (max-width: 840px) {
-  .report-grid > .report-tile-concern:last-child { width: calc((100% - var(--space-2)) / 2); }
-}
-@media (max-width: 520px) {
-  .report-grid > .report-tile-concern:last-child { width: calc((100% - var(--space-1)) / 2); }
+  .report-grid > .report-tile-concern:last-child { width: min(100%, 520px); }
 }
 
 /* Privacy policy copy remains readable inside the mobile information dialog. */
@@ -2566,3 +2559,43 @@ textarea.form-control { min-height: 128px; }
 .training-resource-empty { display: flex; align-items: center; justify-content: center; min-height: 80px; padding: 18px; border: 1px dashed var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 13px; text-align: center; line-height: 1.5; }
 .training-progress-card .training-employee-lookup { margin-top: 18px; }
 @media (max-width: 700px) { .training-master-card { padding: 16px; }.training-resource-grid { gap: 12px; }.training-resource-empty { min-height: 74px; }.training-page-heading { margin-bottom: 4px; } }
+
+.report-picker-voice { color: var(--text); }
+
+/* Visible back navigation for pages and report choices. */
+.section-page-back { margin-bottom: 14px; }
+.report-chooser-back { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; margin: 0 0 10px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font-size: 13px; font-weight: 700; cursor: pointer; }
+.report-chooser-back:hover { background: var(--surface-2); border-color: var(--focus); }
+
+/* Show the selected language by name on mobile, including narrow phones. */
+@media (max-width: 899px) {
+  .header-language-toggle { width: auto; min-width: 44px; padding: 0 8px; }
+  .header-language-label-compact { display: inline-block; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .header-site-switch { min-width: 0; }
+  .header-site-name { min-width: 0; }
+}
+@media (max-width: 380px) {
+  .header-language-toggle { gap: 4px; padding: 0 6px; }
+  .header-change-site { display: none; }
+}
+
+/* The application uses the shared Safex mark, not a hardcoded tenant monogram. */
+.topbar-company-logo { background: transparent; }
+.topbar-company-logo img, .install-company-logo img { width: 100%; height: 100%; object-fit: contain; }
+
+/* Recognition remains visible in the UI even before tenant data is connected. */
+.reward-gallery-empty.recognition-empty { position: relative; display: flex; align-items: center; justify-content: flex-start; gap: 18px; min-height: 126px; padding: 22px 26px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-card); background: linear-gradient(115deg, var(--surface), var(--accent-soft)); box-shadow: var(--shadow-card); text-align: left; }
+.recognition-empty::after { content: ''; position: absolute; top: -64px; right: -36px; width: 150px; height: 150px; border: 1px solid color-mix(in srgb, var(--accent), transparent 70%); border-radius: 50%; box-shadow: 0 0 0 22px color-mix(in srgb, var(--accent), transparent 94%); pointer-events: none; }
+.reward-gallery-empty .recognition-empty-icon { position: relative; z-index: 1; display: grid; place-items: center; flex: none; width: 60px; height: 60px; border-radius: 18px; background: var(--primary); color: #fff; }
+.recognition-empty-copy { position: relative; z-index: 1; display: grid; gap: 5px; }
+.reward-gallery-empty .recognition-empty-copy b { color: var(--text); font-size: 16px; line-height: 1.3; }
+.reward-gallery-empty .recognition-empty-copy span { color: var(--muted); font-size: 13px; line-height: 1.5; }
+@media (max-width: 520px) { .reward-gallery-empty.recognition-empty { gap: 14px; min-height: 112px; padding: 18px; }.reward-gallery-empty .recognition-empty-icon { width: 50px; height: 50px; border-radius: 15px; }.reward-gallery-empty .recognition-empty-copy b { font-size: 14px; }.reward-gallery-empty .recognition-empty-copy span { font-size: 12px; } }
+
+.offline-report-note { margin: 8px 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); color: var(--text); font-size: 12px; line-height: 1.5; }
+
+.more-brand-footer { padding: 22px 8px 10px; color: var(--text); font-size: 12px; font-weight: 500; line-height: 1.4; text-align: center; }
+
+@media (max-width: 520px) { .more-brand-footer { font-size: 11px; } }
+
+.more-brand-footer { filter: blur(0.6px); }

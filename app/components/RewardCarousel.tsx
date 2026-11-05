@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Pause, Play } from 'lucide-react';
+import { Award, Pause, Play } from 'lucide-react';
 import { useI18n } from './I18nProvider';
 
 const SLIDE_LABELS = [
@@ -13,27 +13,29 @@ const SLIDE_LABELS = [
 /** Feed-ready recognition record. Pass only approved/published artwork and consent-checked names. */
 export type RecognitionGalleryItem = {
   id: string;
+  /** Site owning this recognition; the caller also enforces tenant scoping. */
+  siteId: string;
   altText: string;
   imageUrl?: string | null;
   artworkIndex?: number;
-  isPublished?: boolean;
+  isPublished: boolean;
   /** Caption details. Optional, so a privacy-restricted tenant can show artwork only. */
   employeeName?: string | null;
   designation?: string | null;
   rewardFor?: string | null;
 };
 
-type Props = { items?: readonly RecognitionGalleryItem[] };
+type Props = { items?: readonly RecognitionGalleryItem[] | null; siteSelected: boolean };
 
-export default function RewardCarousel({ items = [] }: Props) {
+export default function RewardCarousel({ items = null, siteSelected }: Props) {
   const { T } = useI18n();
   const [paused, setPaused] = useState(false);
-  const publishedItems = items.filter((item) => item.isPublished !== false);
+  const publishedItems = items?.filter((item) => item.isPublished === true) ?? [];
 
-  // Published recognitions come from the database; nothing is drawn in their place.
-  if (!publishedItems.length) return <div className="reward-gallery-empty">
-    <b>{T('No recognitions published yet')}</b>
-    <span>{T('Approved awards will appear here once the safety team publishes them.')}</span>
+  // The illustration is UI decoration, not an employee or a published award.
+  if (!siteSelected || items === null || !publishedItems.length) return <div className="reward-gallery-empty recognition-empty">
+    <span className="recognition-empty-icon"><Award size={30} aria-hidden="true" /></span>
+    <div className="recognition-empty-copy"><b>{T('Celebrating safety champions')}</b><span>{T(!siteSelected ? 'Rewards for your selected site will appear here once site data is available.' : items === null ? 'Rewards and recognition are not connected in this UI preview.' : 'No recognition has been published for this site yet.')}</span></div>
   </div>;
 
   return <div className={`reward-gallery ${paused ? 'paused' : ''}`} role="region" aria-roledescription="carousel" aria-label={T('Rewards and Recognition Gallery')}>
@@ -48,7 +50,7 @@ export default function RewardCarousel({ items = [] }: Props) {
             return <figure className="reward-gallery-card" key={`${copy}-${item.id}`}>
               {item.imageUrl
                 ? <img className="reward-gallery-image" src={item.imageUrl} alt={name ? `Photo of ${name}` : item.altText} loading="lazy" decoding="async" />
-                : <RewardArtwork slide={item.artworkIndex ?? index % SLIDE_LABELS.length} />}
+                : <RewardArtwork slide={(item.artworkIndex ?? index) % SLIDE_LABELS.length} />}
               {(name || reward) && <figcaption className="reward-gallery-overlay">
                 {name && <b title={name}>{name}</b>}
                 {reward && <span>{reward}</span>}

@@ -19,9 +19,8 @@ export const APP_FEATURES: TenantBranding['features'] = {
 /**
  * Branding for the pages that take a company object.
  *
- * Only the company name is real today (it comes from the tenant row through
- * `/api/bootstrap`). Everything else stays explicitly unset so the screens say "not
- * configured" rather than filling the gap with a demo address or email.
+ * The company name is supplied by a future tenant data source. Other tenant details
+ * remain unset in the UI-only preview.
  */
 export function brandingFor(companyName: string | null | undefined): TenantBranding {
   return {
