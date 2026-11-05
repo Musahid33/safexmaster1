@@ -132,68 +132,16 @@ export default function LoggedReports({ siteId, siteName }: { siteId?: string; s
   // A faster site switch must not be overwritten by the answer to the previous request.
   const requestSeq = useRef(0);
 
-  const load = useCallback(async (offset = 0, options: { quiet?: boolean } = {}) => {
-    if (!siteId) {
-      setFeed({ reports: [], total: 0 });
-      return;
-    }
-    const quiet = options.quiet === true;
-    const seq = ++requestSeq.current;
-    const params = new URLSearchParams({ site: siteId, limit: String(PAGE_SIZE), offset: String(offset) });
-    try {
-      const response = await fetch(`/api/reports/site?${params.toString()}`, { cache: 'no-store' });
-      const data = await response.json().catch(() => null);
-      if (seq !== requestSeq.current) return;
-      if (!response.ok || !data?.ok) {
-        // A background revalidation that fails must not replace a usable cached list with an
-        // error screen; only an explicit load or refresh reports the problem.
-        if (!quiet) setError(data?.error ?? 'Reports could not be loaded right now.');
-        return;
-      }
-      const incoming = (data.reports ?? []) as LoggedReport[];
-      const total = Number(data.total ?? incoming.length);
-      setFeed((current) => ({
-        reports: offset === 0 ? incoming : [...current.reports, ...incoming],
-        total
-      }));
-      if (offset === 0) writeCache(siteId, total, incoming);
-      setError('');
-    } catch {
-      if (seq !== requestSeq.current) return;
-      if (!quiet) setError('The reports service could not be reached. Check your connection and try again.');
-    }
-  }, [siteId]);
+  const load = useCallback(async (_offset = 0, _options: { quiet?: boolean } = {}) => {
+    setFeed({ reports: [], total: 0 });
+    setError('Reports are not connected in the UI preview.');
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    setSelected(null);
-    setPhotoBroken(false);
-    setError('');
-    if (!siteId) {
-      setFeed({ reports: [], total: 0 });
-      setLoading(false);
-      return () => { active = false; };
-    }
-
-    const cached = readCache(siteId);
-    if (cached) {
-      setFeed({ reports: cached.reports, total: cached.total });
-      setLoading(false);
-    } else {
-      setFeed({ reports: [], total: 0 });
-      setLoading(true);
-    }
-
-    // Fresh enough: no request at all, so re-opening the screen is instant when nothing changed.
-    const fresh = cached ? Date.now() - cached.savedAt < CACHE_TTL_MS : false;
-    if (fresh) {
-      setLoading(false);
-      return () => { active = false; };
-    }
-
-    void load(0, { quiet: Boolean(cached) }).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [load, siteId]);
+    setFeed({ reports: [], total: 0 });
+    setError('Reports are not connected in the UI preview.');
+    setLoading(false);
+  }, [siteId]);
 
   // A cached photo link is signed for ten minutes; if it has expired, say so instead of
   // showing a broken image.

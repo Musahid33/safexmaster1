@@ -10,55 +10,43 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type
 import { LIFE_SAVING_RULES } from '@/lib/life-saving-rules';
 import { SAFETY_ALERTS, SAFETY_ALERT_FILTERS, type SafetyAlert, type SafetyAlertCategory } from '@/lib/safety-alerts';
 import { APP_FEATURES, brandingFor } from '@/lib/app-config';
-import { SOS_NUMBER, telHref } from '@/lib/emergency';
+import { telHref } from '@/lib/emergency';
 import { LANGUAGES, LANGUAGE_LOCALE } from '@/lib/i18n';
 import LanguageStrip from './components/LanguageStrip';
 import { useI18n } from './components/I18nProvider';
 import ReportWorkflow, { type ReportSubmission } from './components/ReportWorkflow';
 import TrainingPortal from './components/TrainingPortal';
 import ProfileSearchDialog from './components/ProfileSearchDialog';
-import OfficerAccessDialog from './components/OfficerAccessDialog';
-import dynamic from 'next/dynamic';
 import { DocumentVaultGrid, type VaultCategoryId, type VaultDocument } from './components/DocumentVault';
 import { VaultShelf } from './components/VaultShelf';
-import LoggedReports, { invalidateLoggedReports } from './components/LoggedReports';
+import LoggedReports from './components/LoggedReports';
 import RewardCarousel, { type RecognitionGalleryItem } from './components/RewardCarousel';
-import type { RecognitionItem } from '@/lib/recognitions';
 import { FeedArchivePage, HomeFeedDetailDialog } from './components/HomeFeedViews';
 import { useSafexBootstrap } from './components/useSafexBootstrap';
 import { AboutAppPage, AccountManagementPage, CompanyAboutPage, InstallAppPage, MoreInfoDialog, MoreMenuPage, type MoreInfoKind } from './components/MorePages';
 import { APP_TIME_ZONE, formatHomeFeedDate, formatHomeFeedTime, type HomeFeedItem } from '@/lib/home-content';
-import { createSubmissionId, enqueueReport, listQueuedReports, registerReportBackgroundSync, retryReportsNeedingAttention, syncPendingReports } from '@/lib/report-outbox';
 import type { Palette as PaletteName, ReportType, Site, ThemeMode } from '@/lib/types';
 
-// The SafetyOS console is the largest screen in the build (~660 KB of compiled markup and
-// script). It is loaded only when an operator actually opens the dashboard, so a worker's
-// first visit transfers the reporting app alone instead of the whole admin interface.
-const SafetyOsApp = dynamic(() => import('./components/safetyos/SafetyOsApp'), {
-  ssr: false,
-  loading: () => <div className="app-loading" role="status">Loading console…</div>
-});
-
-type PageKey = 'home' | 'reports' | 'alerts' | 'events' | 'circulars' | 'updates' | 'training' | 'more' | 'appearance' | 'install' | 'library' | 'company' | 'account' | 'aboutApp' | 'adminDashboard';
+type PageKey = 'home' | 'reports' | 'alerts' | 'events' | 'circulars' | 'updates' | 'training' | 'more' | 'appearance' | 'install' | 'library' | 'company' | 'account' | 'aboutApp';
 type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }> };
 type UiMessage = { key: string; params?: Record<string, string | number>; report?: { type: ReportType; category: string | null } };
 
-const REPORT_KINDS: { type: ReportType; icon: typeof Zap; tone: string; labelKey?: string; prefix?: string; suffix?: string; desc: string }[] = [
+const REPORT_KINDS: { type: ReportType | 'Feedback & Suggestion'; icon: typeof Zap; tone: string; labelKey?: string; prefix?: string; suffix?: string; desc: string }[] = [
   { type: 'Near Miss', icon: Zap, tone: 'amber', labelKey: 'nearMiss', desc: 'Report something that almost caused injury or damage' },
   { type: 'Hazard', icon: AlertTriangle, tone: 'red', labelKey: 'hazard', desc: 'Spot and report an accident risk or property damage' },
   { type: 'Safety Observation', icon: Eye, tone: 'blue', labelKey: 'safetyObservation', suffix: '(UC / UA)', desc: 'Report or recognize a safety practice at work' },
   { type: 'Unsafe Condition', icon: AlertTriangle, tone: 'amber', labelKey: 'uc', prefix: 'UC', desc: 'Report an unsafe condition at your work site' },
   { type: 'Unsafe Act', icon: ShieldAlert, tone: 'red', labelKey: 'unsafeAct', prefix: 'UA', desc: 'Report an unsafe act or behaviour' },
-  { type: 'Feedback', icon: MessageSquare, tone: 'teal', labelKey: 'feedback', desc: 'Share experience on PPE, equipment, training or welfare' },
+  { type: 'Feedback & Suggestion', icon: MessageSquare, tone: 'teal', desc: 'Share feedback or suggest an improvement' },
   { type: 'Grievance', icon: MessageSquare, tone: 'purple', labelKey: 'grievance', desc: 'Raise a workplace concern for the safety team' },
   { type: 'Speak Up', icon: CircleHelp, tone: 'purple', labelKey: 'speakUp', desc: 'Raise a concern anonymously if you prefer' },
-  { type: 'Suggestion', icon: Lightbulb, tone: 'green', labelKey: 'suggestion', desc: 'Suggest improvements for safer work' }
 ];
 
 type HomeReportTile = {
   id: string;
   reportType?: ReportType;
   opensConcernChooser?: boolean;
+  opensFeedbackChooser?: boolean;
   icon: typeof Zap;
   tone: string;
   labelKey?: string;
@@ -72,19 +60,9 @@ const HOME_REPORT_TILES: HomeReportTile[] = [
   { id: 'near-miss', reportType: 'Near Miss', icon: Zap, tone: 'amber', labelKey: 'nearMiss', descEn: 'A close call worth reporting', descHi: 'बाल-बाल बचे' },
   { id: 'hazard', reportType: 'Hazard', icon: AlertTriangle, tone: 'red', labelKey: 'hazard', descEn: 'Report a hazard', descHi: 'Hazard बताएँ' },
   { id: 'observation', reportType: 'Safety Observation', icon: Eye, tone: 'blue', labelKey: 'safetyObservation', titleHi: 'निरीक्षण', descEn: 'Unsafe condition / unsafe act', descHi: 'UC / UA' },
-  { id: 'feedback', reportType: 'Feedback', icon: MessageSquare, tone: 'teal', labelKey: 'feedback', descEn: 'Share your experience', descHi: 'अनुभव बताएं' },
-  { id: 'concern', opensConcernChooser: true, icon: Shield, tone: 'purple', titleEn: 'Grievance / Speak Up', titleHi: 'शिकायत / खुलकर बोलें', descEn: 'Anonymous option for Speak Up only', descHi: 'गुमनाम केवल Speak Up में' },
-  { id: 'suggestion', reportType: 'Suggestion', icon: Lightbulb, tone: 'green', labelKey: 'suggestion', descEn: 'Share a safer-work idea', descHi: 'आइडिया दें' }
+  { id: 'feedback-suggestion', opensFeedbackChooser: true, icon: MessageSquare, tone: 'teal', titleEn: 'Feedback & Suggestion', descEn: 'Share your experience or ideas', descHi: 'अनुभव या सुझाव साझा करें' },
+  { id: 'concern', opensConcernChooser: true, icon: Shield, tone: 'purple', titleEn: 'Grievances & Speak Up', titleHi: 'शिकायत / खुलकर बोलें', descEn: 'Anonymous option available', descHi: 'गुमनाम विकल्प उपलब्ध है' },
 ];
-
-/**
- * The number as it is dialled inside the country, which is how it reads on an emergency card:
- * `+91 7070705925` becomes `7070705925`. Anything without a country code is left alone.
- */
-function nationalNumber(value: string): string {
-  const trimmed = value.trim();
-  return trimmed.replace(/^\+?91[\s-]?/, '') || trimmed;
-}
 
 function getUpcomingEventStatus(value: string): 'Today' | 'Tomorrow' | 'Upcoming' {
   const eventDate = new Date(value);
@@ -113,7 +91,7 @@ export default function SafexHome() {
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [page, setPage] = useState<PageKey>('home');
   const [recognitions, setRecognitions] = useState<RecognitionGalleryItem[]>([]);
-  // Published content from Supabase: the vault shelves and the circulars / notices / events feed.
+  // Empty preview content for the vault and home feed.
   const [vaultDocuments, setVaultDocuments] = useState<VaultDocument[]>([]);
   const [contentFeed, setContentFeed] = useState<HomeFeedItem[]>([]);
   const [siteId, setSiteId] = useState('');
@@ -128,6 +106,7 @@ export default function SafexHome() {
   const [reportType, setReportType] = useState<ReportType | null>(null);
   const [reportPickerOpen, setReportPickerOpen] = useState(false);
   const [quickConcernChooserOpen, setQuickConcernChooserOpen] = useState(false);
+  const [feedbackChooserOpen, setFeedbackChooserOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [safetyAlertsOpen, setSafetyAlertsOpen] = useState(false);
   const [safetyAlertFilter, setSafetyAlertFilter] = useState<'All' | SafetyAlertCategory>('All');
@@ -136,7 +115,6 @@ export default function SafexHome() {
   const [expandedSafetyAlertId, setExpandedSafetyAlertId] = useState<string | null>(null);
   const [sosOpen, setSosOpen] = useState(false);
   const [profileSearchOpen, setProfileSearchOpen] = useState(false);
-  const [officerAccessOpen, setOfficerAccessOpen] = useState(false);
   const [moreInfoKind, setMoreInfoKind] = useState<MoreInfoKind | null>(null);
   const [notificationPermission, setNotificationPermission] = useState('not requested');
   const [pushPrefs, setPushPrefs] = useState({ safety: true, notices: true, training: true, ownReports: true, allVendorSites: false, hideLockScreen: true });
@@ -151,8 +129,6 @@ export default function SafexHome() {
     setPage('library');
   }, []);
   const [feedDetail, setFeedDetail] = useState<HomeFeedItem | null>(null);
-  const outboxSyncLock = useRef(false);
-  const outboxSyncAgain = useRef(false);
   const languageMenuRef = useRef<HTMLDivElement>(null);
   const safetyAlertsScrollRef = useRef<HTMLDivElement>(null);
   const safetyAlertsTouchStart = useRef<{ x: number; y: number } | null>(null);
@@ -164,42 +140,10 @@ export default function SafexHome() {
     .filter((alert) => safetyAlertFilter === 'All' || alert.category === safetyAlertFilter)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [publishedAlerts, safetyAlertFilter]);
   const currentSite = sites.find((site) => site.id === siteId) ?? null;
-  // The site row can carry its own emergency contact; until one is configured the company
-  // SOS line is dialled instead of showing an empty warning.
-  const sosNumber = currentSite?.sosNumber?.trim() || SOS_NUMBER;
+  // The selected tenant/site supplies this number; never substitute another tenant’s contact.
+  const sosNumber = currentSite?.sosNumber?.trim() || null;
+  const sosDialHref = telHref(sosNumber);
   const isSingleSite = sites.length === 1;
-
-  function refreshOutboxState() {
-    return listQueuedReports();
-  }
-
-  /**
-   * Background sync. It deliberately draws no banner or badge: a report either reaches the
-   * database and shows up in Logged reports, or stays queued and is retried on the next open,
-   * focus or reconnection. Anything that reached the database drops the cached report list so
-   * the next visit reads the new row instead of yesterday's copy.
-   */
-  async function syncOfflineReports() {
-    if (outboxSyncLock.current) {
-      outboxSyncAgain.current = true;
-      return;
-    }
-    outboxSyncLock.current = true;
-    try {
-      await retryReportsNeedingAttention();
-      const result = await syncPendingReports();
-      if (result.syncedIds.length) invalidateLoggedReports(currentSite?.id);
-      await refreshOutboxState();
-    } catch {
-      // Storage or network trouble: the queue is on disk and the next trigger retries it.
-    } finally {
-      outboxSyncLock.current = false;
-      if (outboxSyncAgain.current) {
-        outboxSyncAgain.current = false;
-        void syncOfflineReports();
-      }
-    }
-  }
 
   useEffect(() => {
     try {
@@ -225,17 +169,13 @@ export default function SafexHome() {
     const handleAppInstalled = () => setInstallMessage({ key: '{app} has been installed on this device.', params: { app: brandCompanyName || 'the company app' } });
     window.addEventListener('beforeinstallprompt', handleInstall);
     window.addEventListener('appinstalled', handleAppInstalled);
-    if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
-      navigator.serviceWorker.register('/sw.js').catch(() => setToast({ key: 'Service worker could not be registered.' }));
-    }
     return () => {
       window.removeEventListener('beforeinstallprompt', handleInstall);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
-  // Waits for /api/bootstrap so a genuinely single-site tenant auto-selects instead of
-  // briefly showing a site chooser that cannot match anything.
+  // Select the local preview site before displaying site-specific screens.
   useEffect(() => {
     if (!directoryReady || siteReady) return;
     try {
@@ -257,85 +197,6 @@ export default function SafexHome() {
     }
     setSiteReady(true);
   }, [directoryReady, siteReady, sites]);
-
-  useEffect(() => {
-    if (!siteId) {
-      setVaultDocuments([]);
-      setContentFeed([]);
-      setPublishedAlerts(SAFETY_ALERTS);
-      return;
-    }
-    let active = true;
-    fetch(`/api/content?site=${encodeURIComponent(siteId)}`, { cache: 'no-store' })
-      .then((response) => response.ok ? response.json() : null)
-      .then((data) => {
-        if (!active || !data?.ok) return;
-        // The server only returns published rows, so whatever arrives here is safe to show.
-        setVaultDocuments(Array.isArray(data.documents) ? data.documents as VaultDocument[] : []);
-        setContentFeed(Array.isArray(data.feed) ? data.feed as HomeFeedItem[] : []);
-      })
-      .catch(() => { /* Offline or not configured: the screens keep their empty states. */ });
-    fetch(`/api/alerts?site=${encodeURIComponent(siteId)}`, { cache: 'no-store' })
-      .then((response) => response.ok ? response.json() : null)
-      .then((data) => {
-        if (!active || !data?.ok || !Array.isArray(data.alerts)) return;
-        // Published-only on the server; nothing unconsented can reach this list.
-        setPublishedAlerts(data.alerts as SafetyAlert[]);
-      })
-      .catch(() => { /* Keep the empty state rather than inventing incidents. */ });
-    return () => { active = false; };
-  }, [siteId, page]);
-
-  useEffect(() => {
-    if (page !== 'home') return;
-    let active = true;
-    fetch('/api/recognitions', { cache: 'no-store' })
-      .then((response) => response.ok ? response.json() : null)
-      .then((data) => {
-        if (!active || !data?.ok || !Array.isArray(data.items)) return;
-        setRecognitions((data.items as RecognitionItem[]).map((item) => ({
-          ...item, altText: `Recognition artwork for ${item.employeeName}`, isPublished: true
-        })));
-      }).catch(() => { /* Keep the artwork-only gallery when the backend is unavailable. */ });
-    return () => { active = false; };
-  }, [page]);
-
-  useEffect(() => {
-    if (degraded) setToast({ key: 'The employee master is unavailable. No sample employees are shown. Please try again later.' });
-  }, [degraded]);
-
-  useEffect(() => {
-    let active = true;
-    const refreshAndSync = async () => {
-      try {
-        const entries = await refreshOutboxState();
-        if (!active || !entries.length) return;
-        if (navigator.onLine) void syncOfflineReports();
-      } catch {
-        // No readable queue on this device: nothing to sync, and no message to show.
-      }
-    };
-    const trySync = () => { if (active) void syncOfflineReports(); };
-    const handleVisibility = () => { if (document.visibilityState === 'visible') trySync(); };
-    const handleWorkerMessage = (event: MessageEvent) => {
-      // Ignore messages that did not come from this origin's own service worker.
-      if (event.origin && event.origin !== window.location.origin) return;
-      if (event.data?.type === 'SAFE_REPORT_OUTBOX_UPDATED') trySync();
-    };
-
-    void refreshAndSync();
-    window.addEventListener('online', trySync);
-    window.addEventListener('focus', trySync);
-    document.addEventListener('visibilitychange', handleVisibility);
-    navigator.serviceWorker?.addEventListener('message', handleWorkerMessage);
-    return () => {
-      active = false;
-      window.removeEventListener('online', trySync);
-      window.removeEventListener('focus', trySync);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      navigator.serviceWorker?.removeEventListener('message', handleWorkerMessage);
-    };
-  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.mode = themeMode;
@@ -403,11 +264,6 @@ export default function SafexHome() {
     setToast({ key: 'Selected site {site}. Site content is now filtered for this visit.', params: { site: valid.name } });
   }
 
-  function completeAdminSignIn() {
-    setOfficerAccessOpen(false);
-    setPage('adminDashboard');
-  }
-
   function openLifeRuleForSite(site: Site) {
     setLifeRuleSite(site);
     setLifeRuleOpen(true);
@@ -455,29 +311,8 @@ export default function SafexHome() {
     if (deltaY > 110 && Math.abs(deltaX) < 85 && scrollIsAtTop) closeSafetyAlerts();
   }
 
-  async function submitReport(data: ReportSubmission) {
-    if (!currentSite) throw new Error('Select a site before saving the report.');
-    const clientSubmittedAt = new Date().toISOString();
-    const clientSubmissionId = createSubmissionId();
-    await enqueueReport({
-      clientSubmissionId,
-      siteId: currentSite.id,
-      type: data.type,
-      category: data.category,
-      anonymous: data.type === 'Speak Up' && data.anonymous,
-      employeeNo: data.type === 'Speak Up' && data.anonymous ? null : data.employee?.empNo ?? null,
-      area: data.area,
-      department: data.department,
-      incidentAt: data.incidentAt,
-      description: data.description,
-      immediateAction: data.immediateAction,
-      severity: data.severity,
-      clientSubmittedAt
-    }, data.photo);
-    setReportType(null);
-    setToast({ key: '{report} submitted. It will sync automatically.', report: { type: data.type, category: data.category } });
-    void registerReportBackgroundSync();
-    void syncOfflineReports();
+  async function submitReport(_data: ReportSubmission) {
+    throw new Error('UI preview only: reports cannot be submitted.');
   }
 
   async function requestPushPermission() {
@@ -522,28 +357,9 @@ export default function SafexHome() {
               : <><label className="field-label" htmlFor="site-select">{T('selectSite')}</label><select id="site-select" className="form-control" value={siteDraft} onChange={(e) => setSiteDraft(e.target.value)}>{sites.map((site) => <option key={site.id} value={site.id}>{site.name} · {site.region}</option>)}</select><button className="primary-button full-button" onClick={() => chooseSite(siteDraft)}>{T('continue')} <ChevronRight size={17} /></button></>}</div></div>
   ) : null;
 
-  // The Admin / HSE Manager dashboard is the uploaded SafetyOS console itself. It is
-  // rendered on its own so the worker app's layout and globals cannot restyle it — the
-  // design brings its own scoped stylesheet, topbar, sidebar and mobile behaviour.
-  if (page === 'adminDashboard') {
-    return (
-      <>
-        <SafetyOsApp
-          sites={sites}
-          selectedSiteId={siteId}
-          onChangeSite={() => openSitePicker('adminDashboard')}
-          canChangeSite={!isSingleSite}
-          onExit={() => setPage('home')}
-          officerName="Safety Officer"
-          directoryMode={directoryMode}
-        />
-        {siteSelectionDialog}
-      </>
-    );
-  }
-
   return (
     <div className="safex-app">
+      <div role="status" style={{ background: "#fff4d6", color: "#513900", textAlign: "center", padding: "8px 12px", fontSize: 13 }}>UI preview only · No live data or report submissions</div>
       <div className="site-header-shell">
         <header className="topbar">
           <div className="topbar-inner">
@@ -610,7 +426,7 @@ export default function SafexHome() {
                   <Bell size={19} aria-hidden="true" />
                 </button>}
                 <button className="header-ui-button header-sos-button" onClick={() => setSosOpen(true)} aria-label={T('SOS emergency contact')}>SOS</button>
-                <button className="header-ui-button header-account-button" onClick={() => setOfficerAccessOpen(true)} aria-label={T('Login / account')}><UserRound size={19} aria-hidden="true" /></button>
+                <button className="header-ui-button header-account-button" onClick={() => setPage('account')} aria-label={T('Account')}><UserRound size={19} aria-hidden="true" /></button>
               </div>
             </div>
           </div>
@@ -631,14 +447,15 @@ export default function SafexHome() {
             <div className="report-grid">
               {HOME_REPORT_TILES.map((item) => {
                 const Icon = item.icon;
-                const title = item.labelKey ? T(item.labelKey) : T(item.titleEn ?? '');
+                const title = item.opensFeedbackChooser ? `${T('feedback')} & ${T('suggestion')}` : item.opensConcernChooser ? (language === 'en' ? 'Grievances & Speak Up' : `${T('grievance')} & ${T('speakUp')}`) : item.labelKey ? T(item.labelKey) : T(item.titleEn ?? '');
                 const description = T(item.descEn);
                 return <button
                   key={item.id}
                   type="button"
-                  className="report-tile"
+                  className={`report-tile ${item.opensConcernChooser ? 'report-tile-concern' : ''}`}
                   aria-label={title}
-                  onClick={() => item.opensConcernChooser ? setQuickConcernChooserOpen(true) : item.reportType ? openReport(item.reportType) : undefined}
+                  aria-haspopup={item.opensFeedbackChooser || item.opensConcernChooser ? 'dialog' : undefined}
+                  onClick={() => item.opensFeedbackChooser ? setFeedbackChooserOpen(true) : item.opensConcernChooser ? setQuickConcernChooserOpen(true) : item.reportType ? openReport(item.reportType) : undefined}
                 >
                   <span className={`tile-icon ${item.tone}`}><Icon size={26} strokeWidth={2.1} aria-hidden="true" /></span>
                   <span className="tile-copy"><b>{title}</b><small>{description}</small></span>
@@ -647,7 +464,7 @@ export default function SafexHome() {
             </div>
           </section>
           <section className="section-block quick-section">
-            <div className="section-heading"><div><span className="eyebrow">{T('QUICK ACCESS')}</span><h2>{T('Explore & Learn')}</h2></div></div>
+            <div className="section-heading"><div><span className="eyebrow">{T('QUICK ACCESS')}</span><h2>{T('Safety Resources')}</h2></div></div>
             <div className="home-feature-list">
               <button className="home-feature-row reports-feature" onClick={() => setPage('reports')}>
                 <span className="home-feature-icon"><FileText size={22} /></span>
@@ -667,7 +484,6 @@ export default function SafexHome() {
               {(APP_FEATURES.library || APP_FEATURES.circulars) && <button className="home-feature-row" onClick={() => setPage('updates')}>
                 <span className="home-feature-icon"><FileText size={22} /></span>
                 <span className="home-feature-copy"><b>{T(APP_FEATURES.library && !APP_FEATURES.circulars ? 'Safety Library' : 'Circulars & Notices')}</b><small>{T('Browse all circulars and notices')}</small></span>
-                <span className="home-feature-link">{T('See all ›')}</span>
               </button>}
               <section className="upcoming-events-module" aria-labelledby="upcoming-events-heading">
                 <div className="upcoming-events-header">
@@ -728,7 +544,7 @@ export default function SafexHome() {
           onSearchEmployee={() => setProfileSearchOpen(true)}
           onAccount={() => setPage('account')}
           onAppearance={() => setPage('appearance')}
-          onAboutApp={() => setPage('aboutApp')}
+          onPrivacy={() => setMoreInfoKind('privacy')}
         />}
 
         {page === 'appearance' && <section className="page-panel narrow-panel"><div className="page-heading"><div><span className="eyebrow">{T('MORE · SETTINGS')}</span><h1>{T('appearance')}</h1><p>{T('Choose how the whole app looks on this device.')}</p></div><Palette size={28} /></div>
@@ -741,8 +557,8 @@ export default function SafexHome() {
 
         {page === 'install' && <InstallAppPage company={company} canInstall={Boolean(installPrompt)} installMessage={installMessage} onInstall={installApp} onBack={() => setPage('more')} />}
 
-        {page === 'company' && <CompanyAboutPage company={company} onBack={() => setPage('more')} />}
-        {page === 'account' && <AccountManagementPage onBack={() => setPage('more')} onLogin={() => setOfficerAccessOpen(true)} onOpenInfo={setMoreInfoKind} />}
+        {page === 'company' && <CompanyAboutPage profile={null} onBack={() => setPage('more')} />}
+        {page === 'account' && <AccountManagementPage onBack={() => setPage('more')} onLogin={() => setToast({ key: 'Login is unavailable in the UI preview.' })} onOpenInfo={setMoreInfoKind} />}
         {page === 'aboutApp' && <AboutAppPage company={company} onBack={() => setPage('more')} onOpenInfo={setMoreInfoKind} />}
       </main>
 
@@ -758,13 +574,21 @@ export default function SafexHome() {
 
       {lifeRuleOpen && lifeRuleSite && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="life-rule-title"><div className="modal life-rule-modal"><div className="modal-header"><div><span className="eyebrow">{lifeRuleSite.name} · {T('LOCATION')}</span><h2 id="life-rule-title">{T('LIFE SAVING RULE')}</h2></div><button className="close-button" type="button" onClick={() => setLifeRuleOpen(false)} aria-label={T('Close Life Saving Rule')}><X /></button></div><div className="life-rule-site-banner"><span className="life-saving-icon"><ShieldAlert size={21} /></span><span><small>{T('SELECTED LOCATION')}</small><b>{lifeRuleSite.name}</b></span></div><p className="life-rule-intro" lang="en">Rules designed to protect your life! Please respect and adhere to these rules.</p><ol className="life-rule-list" lang="en">{LIFE_SAVING_RULES.map((rule, index) => <li key={rule.title}><span className="life-rule-number">{index + 1}</span><div><h3>{rule.title}</h3><p>{rule.text}</p></div></li>)}</ol><div className="life-rule-actions"><button className="primary-button" type="button" onClick={() => setLifeRuleOpen(false)}>{T('Close')}</button></div></div></div>}
 
-      {quickConcernChooserOpen && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="quick-concern-title"><div className="modal quick-concern-modal">
-        <div className="modal-header"><div><span className="eyebrow">{T('SAFETY REPORT')}</span><h2 id="quick-concern-title">{T('Grievance or Speak Up?')}</h2><p>{T('Choose a path. Anonymous reporting is available only for Speak Up.')}</p></div><button className="close-button" type="button" onClick={() => setQuickConcernChooserOpen(false)} aria-label={T('Close report choices')}><X /></button></div>
+      {feedbackChooserOpen && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="feedback-choice-title" onClick={(event) => { if (event.target === event.currentTarget) setFeedbackChooserOpen(false); }} onKeyDown={(event) => { if (event.key === 'Escape') setFeedbackChooserOpen(false); }}><div className="modal quick-concern-modal">
+        <div className="modal-header"><div><span className="eyebrow">{T('SAFETY REPORT')}</span><h2 id="feedback-choice-title">{T('feedback')} & {T('suggestion')}</h2><p>{T('Choose what you would like to share.')}</p></div><button className="close-button" type="button" onClick={() => setFeedbackChooserOpen(false)} aria-label={T('Close report choices')}><X /></button></div>
         <div className="quick-concern-options">
-          <button type="button" className="quick-concern-option" onClick={() => { setQuickConcernChooserOpen(false); openReport('Grievance'); }}><span className="tile-icon purple"><MessageSquare size={20} /></span><span><b>{T('grievance')}</b><small>{T('Employee profile required · not anonymous')}</small></span><ChevronRight size={18} /></button>
+          <button type="button" className="quick-concern-option" autoFocus onClick={() => { setFeedbackChooserOpen(false); openReport('Feedback'); }}><span className="tile-icon teal"><MessageSquare size={20} aria-hidden="true" /></span><span><b>{T('feedback')}</b><small>{T('Share your experience')}</small></span><ChevronRight size={18} aria-hidden="true" /></button>
+          <button type="button" className="quick-concern-option" onClick={() => { setFeedbackChooserOpen(false); openReport('Suggestion'); }}><span className="tile-icon green"><Lightbulb size={20} aria-hidden="true" /></span><span><b>{T('suggestion')}</b><small>{T('Share a safer-work idea')}</small></span><ChevronRight size={18} aria-hidden="true" /></button>
+        </div>
+      </div></div>}
+
+      {quickConcernChooserOpen && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="quick-concern-title"><div className="modal quick-concern-modal">
+        <div className="modal-header"><div><span className="eyebrow">{T('SAFETY REPORT')}</span><h2 id="quick-concern-title">{T('Grievance or Speak Up?')}</h2><p>{T('Choose a path. Both options can be anonymous.')}</p></div><button className="close-button" type="button" onClick={() => setQuickConcernChooserOpen(false)} aria-label={T('Close report choices')}><X /></button></div>
+        <div className="quick-concern-options">
+          <button type="button" className="quick-concern-option" onClick={() => { setQuickConcernChooserOpen(false); openReport('Grievance'); }}><span className="tile-icon purple"><MessageSquare size={20} /></span><span><b>{T('grievance')}</b><small>{T('Anonymous option available')}</small></span><ChevronRight size={18} /></button>
           <button type="button" className="quick-concern-option" onClick={() => { setQuickConcernChooserOpen(false); openReport('Speak Up'); }}><span className="tile-icon purple"><Shield size={20} /></span><span><b>{T('speakUp')}</b><small>{T('Anonymous option available')}</small></span><ChevronRight size={18} /></button>
         </div>
-        <div className="modal-footnote"><LockKeyhole size={14} /> {T('Anonymous Speak Up reports are not linked to employee identity.')}</div>
+        <div className="modal-footnote"><LockKeyhole size={14} /> {T('Avoid identifying details in your description and photos.')}</div>
       </div></div>}
 
       {safetyAlertsOpen && <div className="safety-alerts-modal-shell" role="dialog" aria-modal="true" aria-labelledby="safety-alerts-modal-title" onTouchStart={handleSafetyAlertsTouchStart} onTouchEnd={handleSafetyAlertsTouchEnd}>
@@ -841,9 +665,9 @@ export default function SafexHome() {
             <button className="close-button report-picker-close" type="button" onClick={() => setReportPickerOpen(false)} aria-label={T('Close report types')}><X /></button>
           </div>
           <div className="report-picker-grid">
-            {REPORT_KINDS.map(({ type, icon: Icon, tone, labelKey, prefix, suffix, desc }) => <button key={type} type="button" className="report-picker-option" aria-label={T(type)} onClick={() => { setReportPickerOpen(false); openReport(type); }}>
+            {REPORT_KINDS.map(({ type, icon: Icon, tone, labelKey, prefix, suffix, desc }) => <button key={type} type="button" className="report-picker-option" aria-label={type === 'Feedback & Suggestion' ? `${T('feedback')} & ${T('suggestion')}` : T(type)} onClick={() => { setReportPickerOpen(false); if (type === 'Feedback & Suggestion') setFeedbackChooserOpen(true); else openReport(type); }}>
               <span className={`tile-icon ${tone}`}><Icon size={24} aria-hidden="true" /></span>
-              <span className="report-picker-copy"><b>{prefix ? `${prefix} · ` : ''}{labelKey ? T(labelKey) : T(type)}{suffix ? ` ${suffix}` : ''}</b><small className="sr-only">{T(desc)}</small></span>
+              <span className="report-picker-copy"><b>{prefix ? `${prefix} · ` : ''}{type === 'Feedback & Suggestion' ? `${T('feedback')} & ${T('suggestion')}` : labelKey ? T(labelKey) : T(type)}{suffix ? ` ${suffix}` : ''}</b><small className="sr-only">{T(desc)}</small></span>
               {APP_FEATURES.voiceReporting && <span className="report-picker-voice" aria-hidden="true"><Mic size={22} /></span>}
             </button>)}
           </div>
@@ -852,8 +676,7 @@ export default function SafexHome() {
 
       {reportType && currentSite && <ReportWorkflow key={`${reportType}-${currentSite.id}`} type={reportType} site={currentSite} directory={directory} language={language} onLanguageChange={setLanguage} voiceEnabled={APP_FEATURES.voiceReporting} onClose={() => setReportType(null)} onSubmit={submitReport} />}
       {profileSearchOpen && <ProfileSearchDialog site={currentSite} companyName={companyName} directory={directory} directoryMode={directoryMode} directoryReason={directoryReason} employeeCount={employeeCount} onClose={() => setProfileSearchOpen(false)} />}
-      {officerAccessOpen && <OfficerAccessDialog onClose={() => setOfficerAccessOpen(false)} onSignedIn={completeAdminSignIn} />}
-      {moreInfoKind && <MoreInfoDialog kind={moreInfoKind} company={company} onClose={() => setMoreInfoKind(null)} onLogin={() => { setMoreInfoKind(null); setOfficerAccessOpen(true); }} />}
+      {moreInfoKind && <MoreInfoDialog kind={moreInfoKind} company={company} onClose={() => setMoreInfoKind(null)} onLogin={() => { setMoreInfoKind(null); setToast({ key: 'Login is unavailable in the UI preview.' }); }} />}
 
 
       {notificationsOpen && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="notification-title"><div className="modal settings-modal"><div className="modal-header"><div><span className="eyebrow">{T('DEVICE SETTINGS')}</span><h2 id="notification-title">{T('Push notifications')}</h2></div><button className="close-button" onClick={() => setNotificationsOpen(false)} aria-label={T('Close')}><X /></button></div><p>{T('Choose which published updates reach this device. Avoid sending every draft or internal edit.')}</p><div className="notification-status"><Bell size={17} /><span>{T('Browser permission:')} <b>{T(notificationPermission)}</b></span></div><Preference label="Safety Alerts and urgent notices" detail="New published safety alerts" checked={pushPrefs.safety} onChange={() => setPref('safety')} /><Preference label="Circulars and published updates" detail="Notices, events and training" checked={pushPrefs.notices} onChange={() => setPref('notices')} /><Preference label="My report status" detail="Updates only for your reports" checked={pushPrefs.ownReports} onChange={() => setPref('ownReports')} /><Preference label="All vendor-site updates" detail="Opt in for this vendor only" checked={pushPrefs.allVendorSites} onChange={() => setPref('allVendorSites')} /><Preference label="Hide details on lock screen" detail="Recommended for privacy" checked={pushPrefs.hideLockScreen} onChange={() => setPref('hideLockScreen')} /><button className="primary-button full-button" onClick={requestPushPermission}>{T('Allow notifications on this device')}</button></div></div>}
@@ -871,19 +694,17 @@ export default function SafexHome() {
             <h2 id="sos-title"><span aria-hidden="true">🚨</span> {T('EMERGENCY HELPLINE')}</h2>
           </div>
           <div className="sos-body">
-            <p className="sos-company">{T('Tata Steel Emergency Call')}</p>
-            <p className="sos-number">{nationalNumber(sosNumber)}</p>
-            <a className="sos-call-button" href={telHref(sosNumber)}>
-              <PhoneCall size={20} aria-hidden="true" /> {T('Tap to Call')}
-            </a>
+            <p className="sos-company">{T('Site emergency contact')}</p>
+            {sosDialHref && sosNumber ? <>
+              <p className="sos-number">{sosNumber}</p>
+              <a className="sos-call-button" href={sosDialHref}>
+                <PhoneCall size={20} aria-hidden="true" /> {T('Tap to Call')}
+              </a>
+              <div className="sos-note"><p>{T('Use this number only in an emergency.')}</p></div>
+            </> : <div className="sos-note" role="status">
+              <p>{T('No emergency contact is available for this site in the UI preview. Contact local emergency services directly if you need urgent help.')}</p>
+            </div>}
             <button className="sos-cancel-button" type="button" onClick={() => setSosOpen(false)}>{T('Cancel')}</button>
-            {sosNumber !== SOS_NUMBER && <p className="sos-fallback-note">{T('Company SOS line · {phone}', { phone: SOS_NUMBER })}</p>}
-            {/* Deliberately the Tata Steel line, not the tenant's own: this card is the
-                group emergency helpline that every site dials. */}
-            <div className="sos-note">
-              <p>{T('This is the Tata Steel emergency number. Use it only in an emergency.')}</p>
-              <p lang="hi">यह टाटा स्टील का आपातकालीन नंबर है — इसका उपयोग केवल आपातकालीन परिस्थिति में करें।</p>
-            </div>
           </div>
         </div>
       </div>}

@@ -44,7 +44,7 @@ type VaultCategory = {
 export const DOCUMENT_VAULT_CATEGORIES: VaultCategory[] = [
   { id: 'sop-swp', title: 'SOP / SWP', description: 'Standard & safe work procedures', tone: 'red', icon: FileText },
   { id: 'risk-assessments', title: 'Risk Assessments', description: 'JHA, HIRA & task risk reviews', tone: 'blue', icon: ShieldAlert },
-  { id: 'legal-compliance', title: 'Legal & Statutory Compliance', description: 'Registers, checklists & obligations', tone: 'amber', icon: Scale },
+  { id: 'legal-compliance', title: 'Compliance & Documents', description: 'Registers, checklists & obligations', tone: 'amber', icon: Scale },
   { id: 'policies-procedures', title: 'Policy & Procedures', description: 'Safety policy and management process', tone: 'purple', icon: ScrollText }
 ];
 

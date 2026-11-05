@@ -1,28 +1,20 @@
 {
-  "name": "safex-production-starter",
-  "version": "0.1.0",
+  "name": "safex-worker-ui",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0 -p 3000",
     "build": "next build",
-    "design:extract": "node scripts/extract-design.mjs",
     "start": "next start --hostname 0.0.0.0",
-    "typecheck": "tsc --noEmit",
-    "employees:dry-run": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/import-employee-master.mts --dry-run",
-    "employees:import": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --env-file-if-exists=.env.local scripts/import-employee-master.mts",
-    "test": "node --disable-warning=ExperimentalWarning --test tests/*.test.mjs",
-    "test:employee-master": "node --disable-warning=ExperimentalWarning --test tests/employee-master.test.mjs"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.109.0",
     "html-to-image": "^1.11.13",
     "lucide-react": "^1.50.0",
     "next": "^16.3.8",
-    "pdf-lib": "^1.17.1",
     "qrcode.react": "^4.2.0",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "zod": "^4.6.5"
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@types/node": "latest",

@@ -1,10 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { I18nProvider } from './components/I18nProvider';
-import SourceGuard from './components/SourceGuard';
 import './globals.css';
 
-// The static shell cannot know the tenant: the real company name arrives from
-// /api/bootstrap and brands the page at runtime.
+// Static application identity for the UI preview.
 const appName = 'Safex Safety';
 
 export const metadata: Metadata = {
@@ -28,7 +26,6 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <html lang="en" data-mode="light" data-palette="safex"><body>
-      <SourceGuard />
       <I18nProvider>{children}</I18nProvider>
     </body></html>;
 }

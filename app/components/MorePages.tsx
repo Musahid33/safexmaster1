@@ -19,7 +19,7 @@ type MoreMenuPageProps = {
   onSearchEmployee: () => void;
   onAccount: () => void;
   onAppearance: () => void;
-  onAboutApp: () => void;
+  onPrivacy: () => void;
 };
 
 type MoreOptionCardProps = {
@@ -62,7 +62,7 @@ function MoreOptionCard({ icon: Icon, tone, title, description, onClick }: MoreO
   </button>;
 }
 
-export function MoreMenuPage({ title, companyName, onInstall, onCompanyAbout, onSearchEmployee, onAccount, onAppearance, onAboutApp }: MoreMenuPageProps) {
+export function MoreMenuPage({ title, companyName, onInstall, onCompanyAbout, onSearchEmployee, onAccount, onAppearance, onPrivacy }: MoreMenuPageProps) {
   const { T } = useI18n();
   return <section className="page-panel more-landing-page">
     <div className="more-page-heading">
@@ -71,11 +71,11 @@ export function MoreMenuPage({ title, companyName, onInstall, onCompanyAbout, on
     </div>
     <div className="more-option-list" aria-label={T('More options')}>
       <MoreOptionCard icon={Smartphone} tone="install" title="Install App" description={T('Install {company} on this device', { company: companyName || T('the company app') })} onClick={onInstall} />
-      <MoreOptionCard icon={Building2} tone="company" title="Vendor / Company About Us" description="Company profile, services, contact and support" onClick={onCompanyAbout} />
+      <MoreOptionCard icon={Building2} tone="company" title="Company Profile" description="About us, services and contact details" onClick={onCompanyAbout} />
       <MoreOptionCard icon={UserRound} tone="employee" title="Search Employee Profile" description="Find an employee using their Employee ID" onClick={onSearchEmployee} />
       <MoreOptionCard icon={LockKeyhole} tone="account" title="Account Login" description="Login, logout, password and account settings" onClick={onAccount} />
       <MoreOptionCard icon={Palette} tone="appearance" title="Appearance" description="Light Mode, Dark Mode and System Default" onClick={onAppearance} />
-      <MoreOptionCard icon={Info} tone="about-app" title="About App" description="App version, policies and support information" onClick={onAboutApp} />
+      <MoreOptionCard icon={ShieldCheck} tone="about-app" title="Privacy Policy" description="Read the sample privacy policy" onClick={onPrivacy} />
     </div>
   </section>;
 }
@@ -113,46 +113,43 @@ function CompanyDetail({ icon: Icon, label, value, href }: { icon: LucideIcon; l
   const { T } = useI18n();
   return <div className="company-detail-row">
     <span className="company-detail-icon"><Icon size={17} aria-hidden="true" /></span>
-    <span className="company-detail-copy"><small>{T(label)}</small>{href ? <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}>{value}</a> : <b>{value?.trim() || T('Not configured by Admin')}</b>}</span>
+    <span className="company-detail-copy"><small>{T(label)}</small>{href ? <a href={href} target={href.startsWith('http') ? '_blank' : undefined} rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}>{value}</a> : <b>{value?.trim() || T('Not provided')}</b>}</span>
   </div>;
 }
 
-export function CompanyAboutPage({ company, onBack }: { company: TenantBranding; onBack: () => void }) {
+/** Display-only profile; a future tenant data source can provide these fields. */
+export type CompanyProfile = {
+  name?: string | null;
+  about?: string | null;
+  services?: string[] | null;
+  address?: string | null;
+  email?: string | null;
+  mobile?: string | null;
+};
+
+export function CompanyAboutPage({ profile, onBack }: { profile: CompanyProfile | null; onBack: () => void }) {
   const { T } = useI18n();
-  const websiteHref = safeExternalUrl(company.website);
-  const services = (company.services ?? []).map((service) => service.trim()).filter(Boolean);
-  const companyName = company.companyName.trim() || T('Company Name');
+  const services = (profile?.services ?? []).map((service) => service.trim()).filter(Boolean);
   return <section className="page-panel more-subpage-panel company-about-page">
-    <MoreSubpageHeading eyebrow="COMPANY PROFILE" title="Vendor / Company About Us" description="Company information published by your Admin." icon={Building2} onBack={onBack} />
+    <MoreSubpageHeading eyebrow="COMPANY PROFILE" title="Company Profile" description="Company information and contact details." icon={Building2} onBack={onBack} />
     <div className="company-profile-banner">
-      <CompanyLogo company={company} />
-      <span className="company-profile-banner-copy"><small>{T('VENDOR / COMPANY')}</small><b>{companyName}</b><span>{T('Admin-managed profile')}</span></span>
-      <span className="company-profile-check"><Check size={17} aria-label={T('Profile details are tenant-managed')} /></span>
+      <span className="company-logo-mark" aria-hidden="true">{profile?.name?.trim().charAt(0) || 'C'}</span>
+      <span className="company-profile-banner-copy"><small>{T('COMPANY PROFILE')}</small><b>{profile?.name?.trim() || T('Company name not provided')}</b></span>
     </div>
     <div className="company-about-card">
-      <div className="company-about-card-heading"><span className="company-about-card-icon"><Info size={18} /></span><h2>{T('Introduction')}</h2></div>
-      <p>{company.companyIntroduction?.trim() || T('Company introduction has not been configured by Admin.')}</p>
+      <div className="company-about-card-heading"><span className="company-about-card-icon"><Info size={18} /></span><h2>{T('About Us')}</h2></div>
+      <p>{profile?.about?.trim() || T('No company information available yet.')}</p>
     </div>
     <div className="company-about-card">
       <div className="company-about-card-heading"><span className="company-about-card-icon services"><ShieldCheck size={18} /></span><h2>{T('Services')}</h2></div>
-      {services.length > 0
-        ? <ul className="company-services-list">{services.map((service) => <li key={service}>{service}</li>)}</ul>
-        : <p>{T('Company services have not been configured by Admin.')}</p>}
+      {services.length ? <ul className="company-services-list">{services.map((service, index) => <li key={`${service}-${index}`}>{service}</li>)}</ul> : <p>{T('No services available yet.')}</p>}
     </div>
     <div className="company-about-card">
       <div className="company-about-card-heading"><span className="company-about-card-icon contact"><Phone size={18} /></span><h2>{T('Contact Details')}</h2></div>
       <div className="company-detail-list">
-        <CompanyDetail icon={MapPin} label="Address" value={company.companyAddress} />
-        <CompanyDetail icon={Mail} label="Email" value={company.email} href={emailHref(company.email)} />
-        <CompanyDetail icon={Phone} label="Phone" value={company.mobile} href={phoneHref(company.mobile)} />
-        <CompanyDetail icon={Globe2} label="Website" value={company.website} href={websiteHref} />
-      </div>
-    </div>
-    <div className="company-about-card">
-      <div className="company-about-card-heading"><span className="company-about-card-icon support"><LockKeyhole size={18} /></span><h2>{T('Support')}</h2></div>
-      <div className="company-detail-list">
-        <CompanyDetail icon={Mail} label="Support email" value={company.supportEmail} href={emailHref(company.supportEmail)} />
-        <CompanyDetail icon={Phone} label="Support phone" value={company.supportMobile} href={phoneHref(company.supportMobile)} />
+        <CompanyDetail icon={MapPin} label="Address" value={profile?.address} />
+        <CompanyDetail icon={Mail} label="Email ID" value={profile?.email} href={emailHref(profile?.email)} />
+        <CompanyDetail icon={Phone} label="Mobile" value={profile?.mobile} href={phoneHref(profile?.mobile)} />
       </div>
     </div>
   </section>;
@@ -266,7 +263,12 @@ export function MoreInfoDialog({ kind, company, onClose, onLogin }: {
   return <div className="overlay more-info-overlay" role="dialog" aria-modal="true" aria-labelledby="more-info-title">
     <div className="modal more-info-modal">
       <div className="modal-header"><div><span className="eyebrow">{T('MORE · INFORMATION')}</span><h2 id="more-info-title">{title}</h2></div><button type="button" className="close-button" onClick={onClose} aria-label={T('Close {title}', { title })}><X size={18} /></button></div>
-      {kind === 'privacy' && <div className="more-info-copy"><p>{T('An approved Privacy Policy has not been published for this company yet.')}</p><p>{T('Ask the company Admin to configure the policy URL before collecting or processing production employee information.')}</p></div>}
+      {kind === 'privacy' && <div className="more-info-copy">
+        <p><strong>{T('Sample policy for UI preview only.')}</strong> {T('This is not an approved privacy policy. Replace it with a policy reviewed for your organisation before production use.')}</p>
+        <h3>{T('Information')}</h3><p>{T('A safety portal may collect information that users provide, such as their contact details and safety reports.')}</p>
+        <h3>{T('Use and access')}</h3><p>{T('Information may be used to manage safety activities and shared with authorised personnel where appropriate.')}</p>
+        <h3>{T('Your choices')}</h3><p>{T('Your organisation should explain how to request access, corrections or deletion and how to contact its privacy team.')}</p>
+      </div>}
       {kind === 'terms' && <div className="more-info-copy"><p>{T('Terms & Conditions have not been published for this company yet.')}</p><p>{T('Ask the company Admin to configure the approved terms before production use.')}</p></div>}
       {kind === 'support' && <div className="more-info-copy"><p>{T('Support contacts for {company}:', { company: company.companyName || T('this company') })}</p>{hasSupport ? <div className="company-detail-list support-dialog-details">
         <CompanyDetail icon={Mail} label="Support email" value={company.supportEmail} href={emailHref(company.supportEmail)} />

@@ -4,6 +4,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { ArrowLeft, Check, ChevronRight, ImagePlus, LockKeyhole, MapPin, Search, Send, X } from 'lucide-react';
 import type { EmployeeDirectory } from '@/lib/employee-directory';
 import type { Employee, Language, ReportType, Site } from '@/lib/types';
+import { supportsAnonymousReporting } from '@/lib/report-privacy';
 import LanguageStrip from './LanguageStrip';
 import VoiceTextArea from './VoiceTextArea';
 import { useI18n } from './I18nProvider';
@@ -113,8 +114,8 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
   const categories = CATEGORY_OPTIONS[type] ?? [];
   const [screen, setScreen] = useState<'category' | 'form'>(categories.length ? 'category' : 'form');
   const [category, setCategory] = useState<string | null>(null);
-  const canReportAnonymously = type === 'Speak Up';
-  const [anonymous, setAnonymous] = useState(canReportAnonymously);
+  const canReportAnonymously = supportsAnonymousReporting(type);
+  const [anonymous, setAnonymous] = useState(type === 'Speak Up');
   const [employeeQuery, setEmployeeQuery] = useState('');
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [location, setLocation] = useState('');
@@ -196,14 +197,12 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
 
   function toggleAnonymous() {
     if (!canReportAnonymously) return;
-    setAnonymous((current) => {
-      const next = !current;
-      if (next) {
-        setEmployee(null);
-        setEmployeeQuery('');
-      }
-      return next;
-    });
+    if (!anonymous) {
+      setEmployee(null);
+      setEmployeeQuery('');
+      setEmployeeMatches([]);
+    }
+    setAnonymous(!anonymous);
     setError('');
   }
 
@@ -302,7 +301,7 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
       </div> : <form className="report-workflow-form" onSubmit={handleSubmit}>
         <div className="site-context compact"><MapPin size={16} /><span>{T('Filed under')} <b>{site.name}</b>{category && <> · <b>{T(category)}</b></>}</span></div>
 
-        {canReportAnonymously && <div className="anonymous-row report-anonymous-row"><div><b>🤫 {T('Submit anonymously')}</b><small>{T('Your name and Employee ID will be left blank and not linked to this report.')}</small></div><button className={`switch ${anonymous ? 'on' : ''}`} type="button" aria-pressed={anonymous} onClick={toggleAnonymous}><span /></button></div>}
+        {canReportAnonymously && <div className="anonymous-row report-anonymous-row"><div><b>🤫 {T('Submit anonymously')}</b><small>{T('Your name and Employee ID are omitted when anonymous is selected.')}</small></div><button className={`switch ${anonymous ? 'on' : ''}`} type="button" aria-label={T('Submit anonymously')} aria-pressed={anonymous} onClick={toggleAnonymous}><span /></button></div>}
 
         {!anonymous && <section className="report-identity-section" aria-label={T('Reporter identity')}>
           <label className="field-label" htmlFor="report-employee-lookup">👤 {T('Your Name / Employee ID')} <span className="required">*</span></label>
@@ -318,7 +317,7 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
           {employee && <div className="auto-fields report-identity-fields"><label><small>{T('Your Name')}</small><input className="identity-readonly" value={employee.name} readOnly /></label><label><small>{T('Employee ID')}</small><input className="identity-readonly" value={employee.empNo} readOnly /></label><label className="wide"><small>{T('Designation · auto-filled')}</small><input className="identity-readonly" value={employee.designation} readOnly /></label><button type="button" className="clear-employee" onClick={() => { setEmployee(null); setEmployeeQuery(''); }}>{T('Change profile')}</button></div>}
           <small className="field-help">{T('Select a suggestion to fill your name, Employee ID and designation. The lookup uses the employee master for the selected site.')}</small>
         </section>}
-        {anonymous && <div className="privacy-note report-privacy"><LockKeyhole size={15} /> {T('Identity fields are hidden. The report is submitted without an employee link.')}</div>}
+        {anonymous && <div className="privacy-note report-privacy"><LockKeyhole size={15} /> {T('Identity fields are hidden. Avoid identifying details in your text and photos. This is a UI preview; reports are not submitted.')}</div>}
 
         <div className={`form-two-column ${showLocation && !showDepartment ? 'single-column' : ''}`}>
           {showLocation && <div><label className="field-label" htmlFor="report-location">📍 {T('Location / area')} <span className="required">*</span></label><input id="report-location" className="form-control" value={location} onChange={(event) => setLocation(event.target.value)} placeholder={T('E.g., Blast Furnace Site-4, Sheet Mill A')} required /></div>}
