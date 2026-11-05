@@ -6,9 +6,9 @@ import {
   Monitor, Mic, Moon, MoreHorizontal, Palette, PhoneCall, Shield, ShieldAlert,
   Smartphone, Sun, UserRound, X, Zap, MessageSquare
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { LIFE_SAVING_RULES } from '@/lib/life-saving-rules';
-import { SAFETY_ALERTS, SAFETY_ALERT_FILTERS, type SafetyAlert, type SafetyAlertCategory } from '@/lib/safety-alerts';
+import SafetyAlerts from './components/SafetyAlerts';
 import { APP_FEATURES, brandingFor } from '@/lib/app-config';
 import { telHref } from '@/lib/emergency';
 import { LANGUAGES, LANGUAGE_LOCALE } from '@/lib/i18n';
@@ -109,10 +109,6 @@ export default function SafexHome() {
   const [feedbackChooserOpen, setFeedbackChooserOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [safetyAlertsOpen, setSafetyAlertsOpen] = useState(false);
-  const [safetyAlertFilter, setSafetyAlertFilter] = useState<'All' | SafetyAlertCategory>('All');
-  /** Alerts published from the console. Falls back to the (empty) built-in list when offline. */
-  const [publishedAlerts, setPublishedAlerts] = useState<SafetyAlert[]>(SAFETY_ALERTS);
-  const [expandedSafetyAlertId, setExpandedSafetyAlertId] = useState<string | null>(null);
   const [sosOpen, setSosOpen] = useState(false);
   const [profileSearchOpen, setProfileSearchOpen] = useState(false);
   const [moreInfoKind, setMoreInfoKind] = useState<MoreInfoKind | null>(null);
@@ -130,15 +126,10 @@ export default function SafexHome() {
   }, []);
   const [feedDetail, setFeedDetail] = useState<HomeFeedItem | null>(null);
   const languageMenuRef = useRef<HTMLDivElement>(null);
-  const safetyAlertsScrollRef = useRef<HTMLDivElement>(null);
-  const safetyAlertsTouchStart = useRef<{ x: number; y: number } | null>(null);
 
   const nextUpcomingEvent = useMemo(() => contentFeed
     .filter((item) => item.type === 'Event' && new Date(item.date).getTime() >= Date.now())
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] ?? null, [contentFeed]);
-  const filteredSafetyAlerts = useMemo(() => publishedAlerts
-    .filter((alert) => safetyAlertFilter === 'All' || alert.category === safetyAlertFilter)
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [publishedAlerts, safetyAlertFilter]);
   const currentSite = sites.find((site) => site.id === siteId) ?? null;
   // The selected tenant/site supplies this number; never substitute another tenant’s contact.
   const sosNumber = currentSite?.sosNumber?.trim() || null;
@@ -224,20 +215,6 @@ export default function SafexHome() {
   }, [languageMenuOpen]);
 
   useEffect(() => {
-    if (!safetyAlertsOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSafetyAlertsOpen(false);
-    };
-    document.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [safetyAlertsOpen]);
-
-  useEffect(() => {
     try { localStorage.setItem('safex-push-preferences', JSON.stringify(pushPrefs)); } catch { /* session-only preference */ }
   }, [pushPrefs]);
 
@@ -280,35 +257,7 @@ export default function SafexHome() {
   }
 
   function openSafetyAlerts() {
-    setSafetyAlertFilter('All');
-    setExpandedSafetyAlertId(null);
     setSafetyAlertsOpen(true);
-  }
-
-  function closeSafetyAlerts() {
-    setSafetyAlertsOpen(false);
-    setExpandedSafetyAlertId(null);
-  }
-
-  function handleSafetyAlertsBack() {
-    if (expandedSafetyAlertId) setExpandedSafetyAlertId(null);
-    else closeSafetyAlerts();
-  }
-
-  function handleSafetyAlertsTouchStart(event: ReactTouchEvent<HTMLDivElement>) {
-    const touch = event.touches[0];
-    if (touch) safetyAlertsTouchStart.current = { x: touch.clientX, y: touch.clientY };
-  }
-
-  function handleSafetyAlertsTouchEnd(event: ReactTouchEvent<HTMLDivElement>) {
-    const start = safetyAlertsTouchStart.current;
-    const touch = event.changedTouches[0];
-    safetyAlertsTouchStart.current = null;
-    if (!start || !touch) return;
-    const deltaY = touch.clientY - start.y;
-    const deltaX = touch.clientX - start.x;
-    const scrollIsAtTop = (safetyAlertsScrollRef.current?.scrollTop ?? 0) <= 0;
-    if (deltaY > 110 && Math.abs(deltaX) < 85 && scrollIsAtTop) closeSafetyAlerts();
   }
 
   async function submitReport(_data: ReportSubmission) {
@@ -591,71 +540,7 @@ export default function SafexHome() {
         <div className="modal-footnote"><LockKeyhole size={14} /> {T('Avoid identifying details in your description and photos.')}</div>
       </div></div>}
 
-      {safetyAlertsOpen && <div className="safety-alerts-modal-shell" role="dialog" aria-modal="true" aria-labelledby="safety-alerts-modal-title" onTouchStart={handleSafetyAlertsTouchStart} onTouchEnd={handleSafetyAlertsTouchEnd}>
-        <section className="safety-alerts-modal">
-          <header className="safety-alerts-header">
-            <button type="button" className="safety-alerts-back" onClick={handleSafetyAlertsBack} aria-label={T(expandedSafetyAlertId ? 'Back to all safety alerts' : 'Back')}><ArrowLeft size={20} /><span>{T('Back')}</span></button>
-            <div className="safety-alerts-header-title"><h2 id="safety-alerts-modal-title">{T('Safety Alerts')}</h2><small>{currentSite?.name ?? T('Selected site')}</small></div>
-            <button type="button" className="safety-alerts-close" onClick={closeSafetyAlerts} aria-label={T('Close safety alerts')}><X size={21} /></button>
-          </header>
-          <div className="safety-alerts-scroll" ref={safetyAlertsScrollRef}>
-            <div className="safety-alert-filter-row" role="group" aria-label={T('Filter safety alerts')}>
-              {SAFETY_ALERT_FILTERS.map((filter) => <button key={filter} type="button" className={`safety-alert-filter-chip ${safetyAlertFilter === filter ? 'active' : ''}`} aria-pressed={safetyAlertFilter === filter} onClick={() => { setSafetyAlertFilter(filter); setExpandedSafetyAlertId(null); }}>{T(filter)}</button>)}
-            </div>
-            <div className="safety-alerts-results-heading"><h3>{safetyAlertFilter === 'All' ? T('All safety alerts') : T(safetyAlertFilter)}</h3><span>{T('{count} alerts', { count: new Intl.NumberFormat(locale).format(filteredSafetyAlerts.length) })}</span></div>
-            <div className="safety-alert-list">
-              {filteredSafetyAlerts.map((alert) => {
-                const expanded = expandedSafetyAlertId === alert.id;
-                const categoryClass = alert.category.toLowerCase().replace(/\s+/g, '-');
-                const detailsId = `safety-alert-details-${alert.id}`;
-                return <article className={`safety-alert-card ${categoryClass} ${expanded ? 'expanded' : ''}`} key={alert.id}>
-                  <button type="button" className="safety-alert-card-toggle" aria-expanded={expanded} aria-controls={detailsId} onClick={() => setExpandedSafetyAlertId((current) => current === alert.id ? null : alert.id)}>
-                    <span className={`safety-alert-category-icon ${categoryClass}`}><AlertTriangle size={19} aria-hidden="true" /></span>
-                    <span className="safety-alert-card-copy">
-                      <span className="safety-alert-card-meta"><span className={`safety-alert-category-pill ${categoryClass}`}>{T(alert.category)}</span><time dateTime={alert.date}>{formatHomeFeedDate(alert.date, locale)} · {formatHomeFeedTime(alert.date, locale)}</time>{alert.attachment && <span className="safety-alert-file-chip">{alert.attachment.kind === 'pdf' ? 'PDF' : T('Photo')}</span>}</span>
-                      <b>{alert.title}</b>
-                      <span className="safety-alert-location"><MapPin size={14} aria-hidden="true" />{alert.site} · {alert.area}</span>
-                    </span>
-                    <ChevronDown size={19} className={`safety-alert-expand-icon ${expanded ? 'expanded' : ''}`} aria-hidden="true" />
-                  </button>
-                  <div id={detailsId} className={`safety-alert-details ${expanded ? 'expanded' : ''}`} aria-hidden={!expanded}>
-                    <div className="safety-alert-details-inner">
-                      <section><h4>{T('Incident description')}</h4><p>{alert.description}</p></section>
-                      <section><h4>{T('Root cause')}</h4><p>{alert.rootCause}</p></section>
-                      <section><h4>{T('Immediate response')}</h4><ul>{alert.immediateActions.map((action) => <li key={action}>{action}</li>)}</ul></section>
-                      <section><h4>{T('Corrective actions')}</h4><ul>{alert.correctiveActions.map((action) => <li key={action}>{action}</li>)}</ul></section>
-                      <section><h4>{T('Lessons learned')}</h4><ul>{alert.lessonsLearned.map((lesson) => <li key={lesson}>{lesson}</li>)}</ul></section>
-                      {alert.attachment && expanded && <section className="safety-alert-file">
-                        <h4>{T('Incident file')}</h4>
-                        {alert.attachment.kind === 'image'
-                          ? <img
-                            className="safety-alert-file-image"
-                            src={`${alert.attachment.url}?inline=1`}
-                            alt={alert.attachment.name}
-                            loading="lazy"
-                            decoding="async"
-                          />
-                          : <div className="safety-alert-file-viewer">
-                            <iframe
-                              src={`${alert.attachment.url}?inline=1#navpanes=0&view=FitH`}
-                              title={alert.attachment.name}
-                              loading="lazy"
-                            />
-                          </div>}
-                        <div className="safety-alert-file-actions">
-                          <span>{alert.attachment.name}</span>
-                          <a href={`${alert.attachment.url}?download=1`} download>{T('Download')}</a>
-                        </div>
-                      </section>}
-                    </div>
-                  </div>
-                </article>;
-              })}
-              {filteredSafetyAlerts.length === 0 && <div className="safety-alerts-empty">{T('No safety alerts have been published for this site yet.')}</div>}
-            </div>
-          </div>
-        </section>
-      </div>}
+      {safetyAlertsOpen && <SafetyAlerts alerts={null} siteName={currentSite?.name} locale={locale} onClose={() => setSafetyAlertsOpen(false)} />}
 
       {reportPickerOpen && <div className="overlay report-picker-overlay" role="dialog" aria-modal="true" aria-labelledby="report-picker-title">
         <div className="modal report-picker-modal">
