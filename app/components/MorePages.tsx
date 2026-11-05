@@ -8,6 +8,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import type { TenantBranding } from '@/lib/types';
 import { APP_VERSION, SAFEX_WEBSITE_URL } from '@/lib/app-info';
+import { portalName } from '@/lib/portal-branding';
 import { useI18n } from './I18nProvider';
 
 export type MoreInfoKind = 'privacy' | 'terms' | 'support' | 'change-password' | 'account-settings';
@@ -78,6 +79,7 @@ export function MoreMenuPage({ title, companyName, onInstall, onCompanyAbout, on
       <MoreOptionCard icon={Palette} tone="appearance" title="Appearance" description="Light Mode, Dark Mode and System Default" onClick={onAppearance} />
       <MoreOptionCard icon={ShieldCheck} tone="about-app" title="Privacy Policy" description="Read our data privacy policy" onClick={onPrivacy} />
     </div>
+    <footer className="more-brand-footer">{T('Powered by')} SafexSafety · <span>www.safex.com</span></footer>
   </section>;
 }
 
@@ -168,7 +170,7 @@ export function AccountManagementPage({ onBack }: { onBack: () => void }) {
   }
   return <section className="page-panel account-management-page">
     <div className="login-page-shell">
-      <button type="button" className="account-back-link" onClick={onBack}><ArrowLeft size={17} aria-hidden="true" />{T('Back to More')}</button>
+      <button type="button" className="account-back-link" onClick={onBack}><ArrowLeft size={17} aria-hidden="true" />{T('Back')}</button>
       <div className="login-layout">
         <div className="login-visual">
           <div className="login-visual-content">
@@ -255,20 +257,20 @@ export function InstallAppPage({ company, canInstall, installMessage, onInstall,
   onBack: () => void;
 }) {
   const { T } = useI18n();
-  const appName = company.companyName.trim() || T('Company App');
+  const appName = portalName(company.companyName);
   return <section className="page-panel more-subpage-panel narrow-panel install-app-page">
     <MoreSubpageHeading eyebrow="MORE · APP" title="Install App" description="Add your company’s safety app to this device." icon={Smartphone} onBack={onBack} />
     <div className="install-card install-company-card">
-      <CompanyLogo company={company} className="install-company-logo" fallback="safex" />
+      <span className="install-company-logo"><img src="/icon-192.png" alt="Safex" /></span>
       <span className="install-company-kicker">{T('COMPANY-BRANDED APP')}</span>
       <h2>{appName}</h2>
-      <p>{T('The installed app name follows the Admin-configured Company Name.')}</p>
+      <p>{T('Your portal name will use your company name when tenant data is connected.')}</p>
       <button className="primary-button install-button" onClick={onInstall}><Smartphone size={17} /> {T('Install {app}', { app: appName })}</button>
       {installMessage && <div className="inline-notice" role="status">{T(installMessage.key, installMessage.params)}</div>}
       {!installMessage && <div className="install-availability"><span className={`install-availability-dot ${canInstall ? 'available' : ''}`} />{canInstall ? T('One-tap installation is available in this browser.') : T('If no prompt appears, use your browser menu to install or add to the Home Screen.')}</div>}
     </div>
-    <div className="company-logo-install-note"><Info size={16} /><span>{company.logoPath ? T('The Admin-configured company logo is shown inside the app.') : T('No Company Logo is configured yet; the bundled Safex icon is used until Admin uploads one.')}</span></div>
-    <div className="settings-card install-branding-note"><h2>{T('Install branding')}</h2><p>{T('The PWA manifest, browser title and install name use the configured Company Name. The manifest icon uses the configured Company Logo, with a Safex fallback when none is set. Production admin changes must be published to the tenant manifest before installation.')}</p></div>
+    <div className="company-logo-install-note"><Info size={16} /><span>{T('The Safex logo is used for the app.')}</span></div>
+    <div className="settings-card install-branding-note"><h2>{T('Install branding')}</h2><p>{T('The preview uses a generic install name. A tenant-specific manifest must be configured before the installed app can use your company portal name.')}</p></div>
   </section>;
 }
 

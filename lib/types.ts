@@ -13,11 +13,15 @@ export type DirectoryUnavailableReason =
   | 'empty_directory'
   | 'snapshot_unreadable';
 
+export type LifeSavingRule = { title: string; text: string };
+
 export type Site = {
   id: string;
   name: string;
   region: string;
   sosNumber: string | null;
+  /** Site-specific published rules, supplied by the tenant when configured. */
+  lifeSavingRules?: readonly LifeSavingRule[] | null;
 };
 export type Employee = {
   id: string;

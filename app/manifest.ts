@@ -1,12 +1,11 @@
 import type { MetadataRoute } from 'next';
 
 /**
- * The web app manifest is generated per deployment, not per tenant. The bundled icons are the
- * app's own; a company logo is uploaded by the tenant Admin and used inside the app, not in
- * this build-time file.
+ * UI-only fallback manifest. Tenant-specific installation names require a server-provided
+ * manifest once tenant resolution is implemented. The Safex app icons remain shared.
  */
 export default function manifest(): MetadataRoute.Manifest {
-  const appName = 'Safex Safety';
+  const appName = 'Safety Portal';
   return {
     name: appName,
     short_name: appName,
