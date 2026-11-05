@@ -2322,3 +2322,16 @@ textarea.form-control { min-height: 128px; }
   .vault-viewer { border: 0; border-radius: 0; background: #fff; }
   .vault-viewer iframe { height: 96vh; min-height: 0; }
 }
+
+/* Center the final concern card without changing its width relative to its neighbours. */
+.report-grid > .report-tile-concern:last-child {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc((100% - 3 * var(--space-2)) / 4);
+}
+@media (max-width: 840px) {
+  .report-grid > .report-tile-concern:last-child { width: calc((100% - var(--space-2)) / 2); }
+}
+@media (max-width: 520px) {
+  .report-grid > .report-tile-concern:last-child { width: calc((100% - var(--space-1)) / 2); }
+}

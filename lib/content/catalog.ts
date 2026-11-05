@@ -34,7 +34,7 @@ export const VAULT_CATEGORIES: Record<VaultCategoryKey, VaultCategoryDefinition>
   },
   'legal-compliance': {
     dbKey: 'legal_statutory_compliance',
-    title: 'Legal & Statutory Compliance',
+    title: 'Compliance & Documents',
     description: 'Registers, checklists & obligations',
     docType: 'legal_register'
   },

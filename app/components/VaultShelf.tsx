@@ -155,7 +155,7 @@ export function VaultShelf({ categoryId, siteName, documents = [], onBack }: {
       {shelf.length === 0 && <div className="vault-register-none">
         <b>{T('No documents published yet')}</b>
         <span>{T('Approved files will be listed here once the safety team publishes them from the admin panel.')}</span>
-        <a href="/admin/publish" target="_blank" rel="noreferrer">{T('Publish from the admin panel')}</a>
+        <span>Content is not connected in the UI preview.</span>
       </div>}
     </div>
 
@@ -185,7 +185,7 @@ export function VaultShelf({ categoryId, siteName, documents = [], onBack }: {
       {shelf.length === 0 && <div className="vault-register-none">
         <b>{T('No documents published yet')}</b>
         <span>{T('Approved files will be listed here once the safety team publishes them from the admin panel.')}</span>
-        <a href="/admin/publish" target="_blank" rel="noreferrer">{T('Publish from the admin panel')}</a>
+        <span>Content is not connected in the UI preview.</span>
       </div>}
     </div>
 
