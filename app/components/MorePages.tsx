@@ -1,10 +1,11 @@
 'use client';
 
 import {
-  ArrowLeft, Building2, Check, ChevronRight, ExternalLink, FileText, Globe2, Info, KeyRound,
-  LockKeyhole, LogIn, LogOut, Mail, MapPin, Palette, Phone, ShieldCheck, Smartphone, UserRound, X
+  ArrowLeft, ArrowRight, BarChart3, Building2, Check, ChevronRight, ExternalLink, Eye, EyeOff, FileText, Globe2, GraduationCap, HardHat, Info,
+  LockKeyhole, LogIn, Mail, MapPin, Palette, Phone, ShieldCheck, Smartphone, UserRound, X
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 import type { TenantBranding } from '@/lib/types';
 import { APP_VERSION, SAFEX_WEBSITE_URL } from '@/lib/app-info';
 import { useI18n } from './I18nProvider';
@@ -75,7 +76,7 @@ export function MoreMenuPage({ title, companyName, onInstall, onCompanyAbout, on
       <MoreOptionCard icon={UserRound} tone="employee" title="Search Employee Profile" description="Find an employee using their Employee ID" onClick={onSearchEmployee} />
       <MoreOptionCard icon={LockKeyhole} tone="account" title="Account Login" description="Login, logout, password and account settings" onClick={onAccount} />
       <MoreOptionCard icon={Palette} tone="appearance" title="Appearance" description="Light Mode, Dark Mode and System Default" onClick={onAppearance} />
-      <MoreOptionCard icon={ShieldCheck} tone="about-app" title="Privacy Policy" description="Read the sample privacy policy" onClick={onPrivacy} />
+      <MoreOptionCard icon={ShieldCheck} tone="about-app" title="Privacy Policy" description="Read our data privacy policy" onClick={onPrivacy} />
     </div>
   </section>;
 }
@@ -155,24 +156,48 @@ export function CompanyAboutPage({ profile, onBack }: { profile: CompanyProfile 
   </section>;
 }
 
-export function AccountManagementPage({ onBack, onLogin, onOpenInfo }: {
-  onBack: () => void;
-  onLogin: () => void;
-  onOpenInfo: (kind: MoreInfoKind) => void;
-}) {
+export function AccountManagementPage({ onBack }: { onBack: () => void }) {
   const { T } = useI18n();
-  return <section className="page-panel more-subpage-panel account-management-page">
-    <MoreSubpageHeading eyebrow="ACCOUNT" title="Account Login" description="Access and account preferences." icon={LockKeyhole} onBack={onBack} />
-    <div className="account-session-note"><span><LockKeyhole size={19} /></span><div><b>{T('No active session')}</b><small>{T('Authentication is not connected. No login or logout state is stored.')}</small></div></div>
-    <div className="more-option-list account-option-list" aria-label={T('Account actions')}>
-      <MoreOptionCard icon={LogIn} tone="employee" title="Login" description="Safety supervisor or admin access" onClick={onLogin} />
-      <button type="button" className="more-option-card disabled" disabled aria-disabled="true">
-        <span className="more-option-icon account"><LogOut size={20} aria-hidden="true" /></span>
-        <span className="more-option-copy"><b>{T('Logout')}</b><small>{T('No signed-in account to log out')}</small></span>
-        <ChevronRight size={19} className="more-option-arrow" aria-hidden="true" />
-      </button>
-      <MoreOptionCard icon={KeyRound} tone="company" title="Change Password" description="Password changes require a connected account" onClick={() => onOpenInfo('change-password')} />
-      <MoreOptionCard icon={Palette} tone="appearance" title="Account Settings" description="Review account-specific settings and preferences" onClick={() => onOpenInfo('account-settings')} />
+  const [message, setMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    event.currentTarget.reset();
+    setShowPassword(false);
+    setMessage('Login is not connected in this UI preview. No credentials were sent.');
+  }
+  return <section className="page-panel account-management-page">
+    <div className="login-page-shell">
+      <button type="button" className="account-back-link" onClick={onBack}><ArrowLeft size={17} aria-hidden="true" />{T('Back to More')}</button>
+      <div className="login-layout">
+        <div className="login-visual">
+          <div className="login-visual-content">
+            <h1>{T('Safety First,')}<br />{T('Always.')}</h1>
+            <span className="login-accent-line" aria-hidden="true" />
+            <ul className="login-feature-list">
+              <li><HardHat size={23} aria-hidden="true" />{T('Report Hazards')}</li>
+              <li><GraduationCap size={23} aria-hidden="true" />{T('Complete Training')}</li>
+              <li><FileText size={23} aria-hidden="true" />{T('Access Safety Documents')}</li>
+              <li><BarChart3 size={23} aria-hidden="true" />{T('Track Safety Performance')}</li>
+            </ul>
+          </div>
+        </div>
+        <div className="login-form-area">
+          <div className="account-form-card">
+            <div className="account-card-body">
+              <div className="account-form-intro"><div><h2>{T('Welcome Back')}</h2><p>{T('Sign in to continue to your account.')}</p></div></div>
+              <form className="account-master-form" onSubmit={handleLogin}>
+                <div className="account-field"><label htmlFor="account-username">{T('Username')}</label><div className="account-field-control"><UserRound size={21} aria-hidden="true" /><input id="account-username" name="username" type="text" placeholder={T('Enter your username')} autoComplete="off" required /></div></div>
+                <div className="account-field"><label htmlFor="account-password">{T('Password')}</label><div className="account-field-control"><LockKeyhole size={21} aria-hidden="true" /><input id="account-password" name="password" type={showPassword ? 'text' : 'password'} placeholder={T('Enter your password')} autoComplete="off" required /><button type="button" className="account-visibility" aria-label={T(showPassword ? 'Hide password' : 'Show password')} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button></div></div>
+                <button className="primary-button account-submit" type="submit"><span>{T('Sign In')}</span><ArrowRight size={20} aria-hidden="true" /></button>
+                <button className="account-reset" type="button" onClick={() => setMessage('Password reset is not connected in this UI preview.')}>{T('Reset Password')}</button>
+              </form>
+              {message && <div className="inline-notice account-form-message" role="status">{T(message)}</div>}
+              <div className="account-preview-note"><Info size={16} aria-hidden="true" /><span>{T('UI preview only. Login and password reset are not connected. Please do not enter real credentials.')}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>;
 }
@@ -263,11 +288,13 @@ export function MoreInfoDialog({ kind, company, onClose, onLogin }: {
   return <div className="overlay more-info-overlay" role="dialog" aria-modal="true" aria-labelledby="more-info-title">
     <div className="modal more-info-modal">
       <div className="modal-header"><div><span className="eyebrow">{T('MORE · INFORMATION')}</span><h2 id="more-info-title">{title}</h2></div><button type="button" className="close-button" onClick={onClose} aria-label={T('Close {title}', { title })}><X size={18} /></button></div>
-      {kind === 'privacy' && <div className="more-info-copy">
-        <p><strong>{T('Sample policy for UI preview only.')}</strong> {T('This is not an approved privacy policy. Replace it with a policy reviewed for your organisation before production use.')}</p>
-        <h3>{T('Information')}</h3><p>{T('A safety portal may collect information that users provide, such as their contact details and safety reports.')}</p>
-        <h3>{T('Use and access')}</h3><p>{T('Information may be used to manage safety activities and shared with authorised personnel where appropriate.')}</p>
-        <h3>{T('Your choices')}</h3><p>{T('Your organisation should explain how to request access, corrections or deletion and how to contact its privacy team.')}</p>
+      {kind === 'privacy' && <div className="more-info-copy privacy-policy-copy">
+        <p className="privacy-preview-note">{T('UI preview only: data protection measures must be verified before production use.')}</p>
+        <h3>{T('Data Privacy Policy')}</h3>
+        <p>{T('We value your privacy and are committed to protecting your personal information. SafetyOS collects only the data necessary to provide our services, including account details, safety reports, training records, and system usage information.')}</p>
+        <p>{T('Your data is securely stored, encrypted, and accessible only to authorized users based on their roles. We do')} <strong>{T('not')}</strong> {T('sell your personal information. Data may be shared only with your organization, trusted service providers, or government authorities when required by law.')}</p>
+        <p>{T('By using SafetyOS, you agree to the collection and processing of your information in accordance with this Privacy Policy.')}</p>
+        <p><strong>{T('Last Updated:')}</strong> {T('November 2026')}</p>
       </div>}
       {kind === 'terms' && <div className="more-info-copy"><p>{T('Terms & Conditions have not been published for this company yet.')}</p><p>{T('Ask the company Admin to configure the approved terms before production use.')}</p></div>}
       {kind === 'support' && <div className="more-info-copy"><p>{T('Support contacts for {company}:', { company: company.companyName || T('this company') })}</p>{hasSupport ? <div className="company-detail-list support-dialog-details">
