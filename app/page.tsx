@@ -522,7 +522,7 @@ export default function SafexHome() {
         {page === 'circulars' && <FeedArchivePage kind="circulars" siteName={currentSite?.name ?? T('Selected site')} items={contentFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
         {page === 'updates' && <FeedArchivePage kind="updates" siteName={currentSite?.name ?? T('Selected site')} items={contentFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
 
-        {page === 'training' && <TrainingPortal site={currentSite} directory={directory} />}
+        {page === 'training' && <TrainingPortal site={currentSite} />}
 
         {page === 'library' && (vaultCategoryId
           ? <VaultShelf
