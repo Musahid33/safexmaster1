@@ -2439,3 +2439,130 @@ textarea.form-control { min-height: 128px; }
   .login-form-area .account-form-intro h2 { font-size: 29px; }
   .login-form-area .account-form-intro p { font-size: 14px; }
 }
+
+/* Tenant-ready training master UI */
+.training-master { display: grid; gap: 18px; }
+.training-hero { position: relative; display: flex; justify-content: space-between; align-items: center; overflow: hidden; gap: 20px; padding: 30px 32px; border-radius: 20px; background: linear-gradient(120deg, #102c4e, #165786); color: #fff; }
+.training-hero::after { content: ''; position: absolute; right: -30px; top: -70px; width: 210px; height: 210px; border: 1px solid rgba(255,255,255,.1); border-radius: 50%; box-shadow: 0 0 0 26px rgba(255,255,255,.035), 0 0 0 56px rgba(255,255,255,.025); }
+.training-hero-content, .training-hero-icon { position: relative; z-index: 1; }
+.training-hero-label { display: inline-flex; align-items: center; gap: 7px; color: #b9dded; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.training-hero h1 { margin: 11px 0 5px; color: #fff; font-size: clamp(25px, 3vw, 34px); letter-spacing: -.035em; line-height: 1.15; }
+.training-hero p { margin: 0 0 17px; color: #d7e9f3; font-size: 14px; }
+.training-site-pill { display: inline-flex; padding: 7px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 100px; background: rgba(255,255,255,.09); color: #fff; font-size: 11px; font-weight: 700; }
+.training-hero-icon { display: grid; place-items: center; width: 80px; height: 80px; flex: none; border: 1px solid rgba(255,255,255,.2); border-radius: 22px; background: rgba(255,255,255,.12); color: #e3f4ff; }
+.training-preview-banner { display: flex; align-items: flex-start; gap: 9px; padding: 12px 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); color: var(--muted); font-size: 12px; line-height: 1.5; }
+.training-preview-banner svg { flex: none; }
+.training-master-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.training-master-card { padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: 0 8px 25px rgba(20,42,66,.04); }
+.training-card-header { display: flex; align-items: center; gap: 12px; }
+.training-card-icon { width: 44px; height: 44px; display: grid; place-items: center; flex: none; border-radius: 13px; background: var(--accent-soft); color: var(--focus); }
+.training-card-icon.progress { background: var(--green-soft); color: var(--green); }
+.training-card-header h2 { margin: 0; color: var(--text); font-size: 16px; line-height: 1.3; }
+.training-card-header p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+.training-filter-list { display: flex; flex-wrap: wrap; gap: 7px; margin: 22px 0 16px; }
+.safex-app .training-filter-list button { min-height: 40px; padding: 0 15px; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+.safex-app .training-filter-list button.active { border-color: var(--primary); background: var(--primary); color: #fff; }
+.training-master-empty, .training-progress-placeholder { display: grid; justify-items: center; align-content: center; padding: 30px 18px; border: 1px dashed var(--line); border-radius: 14px; background: var(--surface-2); text-align: center; }
+.training-master-empty > span, .training-progress-placeholder > span { display: grid; place-items: center; width: 47px; height: 47px; border-radius: 15px; background: var(--surface); color: var(--muted); }
+.training-master-empty h3, .training-progress-placeholder h3 { margin: 14px 0 5px; color: var(--text); font-size: 14px; }
+.training-master-empty p, .training-progress-placeholder p { max-width: 34ch; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.training-progress-placeholder { margin-top: 22px; }
+.training-progress-foot { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: var(--muted); font-size: 12px; }
+.training-master-list { display: grid; gap: 9px; }
+.safex-app .training-master-material { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); text-align: left; cursor: pointer; }
+.training-master-material:hover { border-color: var(--focus); }
+.training-material-symbol { display: grid; place-items: center; width: 42px; height: 42px; flex: none; border-radius: 12px; background: var(--accent-soft); color: var(--focus); }
+.training-material-copy { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.training-material-copy b { color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
+.training-material-copy small, .training-material-copy > span { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+@media (max-width: 700px) { .training-master-grid { grid-template-columns: 1fr; }.training-hero { padding: 24px 20px; }.training-hero-icon { width: 56px; height: 56px; border-radius: 16px; }.training-hero-icon svg { width: 29px; height: 29px; }.training-master-card { padding: 18px; } }
+
+/* Employee-code lookup is a preview until a secure training service is configured. */
+.training-employee-lookup { margin-top: 22px; }
+.training-employee-lookup label { color: var(--text); font-size: 13px; font-weight: 800; }
+.training-employee-lookup p { margin: 6px 0 12px; color: var(--muted); font-size: 12px; }
+.training-lookup-controls { display: flex; gap: 8px; }
+.safex-app .training-lookup-controls input { min-width: 0; width: 100%; flex: 1; min-height: 46px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font-size: 14px; }
+.safex-app .training-lookup-controls input:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+.safex-app .training-lookup-controls button { min-height: 46px; padding: 0 17px; font-size: 12px; }
+.training-lookup-message { margin-top: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); color: var(--text); font-size: 12px; line-height: 1.5; }
+.training-privacy-note { display: flex; align-items: flex-start; gap: 9px; margin-top: 18px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); color: var(--muted); font-size: 12px; line-height: 1.5; }
+.training-privacy-note svg { flex: none; }
+
+/* Training screen refinements */
+.training-master { gap: 16px; }
+.training-hero { min-height: 200px; padding: 30px 36px; background: linear-gradient(120deg, var(--primary-strong), var(--primary) 60%, color-mix(in srgb, var(--primary) 75%, #4386af)); box-shadow: var(--shadow); }
+.training-hero-label { color: color-mix(in srgb, var(--accent) 75%, white); }
+.training-hero h1 { font-size: clamp(26px, 3.5vw, 36px); }
+.training-site-pill { align-items: center; gap: 6px; }
+.training-hero-icon { width: 88px; height: 88px; border-radius: 25px; background: rgba(255,255,255,.1); }
+.training-master-grid { gap: 18px; }
+.training-master-card { min-width: 0; padding: 24px; border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
+.training-card-header h2 { font-size: 18px; }
+.training-card-header p { font-size: 13px; }
+.training-library-tools { margin-top: 22px; }
+.training-search { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); color: var(--muted); }
+.training-search:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.training-search svg { flex: none; }
+.safex-app .training-search input { width: 100%; min-width: 0; min-height: 46px; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 14px; }
+.training-search input::placeholder { color: var(--muted); opacity: 1; }
+.training-search input:disabled { cursor: not-allowed; opacity: .75; }
+.training-filter-list { margin: 14px 0 18px; }
+.training-master-empty { min-height: 220px; }
+.training-master-empty > span { width: 56px; height: 56px; border: 1px solid var(--line); border-radius: 18px; }
+.training-master-empty h3 { margin-top: 15px; font-size: 15px; }
+.training-master-empty p { max-width: 36ch; font-size: 13px; }
+.training-employee-lookup { margin-top: 24px; }
+.training-employee-lookup p { line-height: 1.5; }
+.training-lookup-controls { flex-wrap: wrap; }
+.safex-app .training-lookup-controls input { flex: 1 1 135px; }
+.safex-app .training-lookup-controls button { min-width: 92px; flex: 0 0 auto; }
+.training-privacy-note { line-height: 1.55; }
+.training-progress-foot { padding-top: 15px; border-top: 1px solid var(--line); }
+@media (max-width: 700px) {
+  .training-hero { min-height: 0; padding: 24px 20px; }
+  .training-hero p { font-size: 13px; }
+  .training-hero-icon { width: 56px; height: 56px; }
+  .training-master-card { padding: 20px; }
+  .training-progress-card { order: -1; }
+  .training-master-empty { min-height: 180px; }
+}
+@media (max-width: 360px) { .training-hero-icon { display: none; } .training-lookup-controls button { width: 100%; } }
+
+/* Separate, uncluttered resource cards for the training library. */
+.training-sections-heading { margin: 8px 0 0; }
+.training-sections-heading h2 { margin: 4px 0; color: var(--text); font-size: clamp(20px, 2.3vw, 24px); line-height: 1.25; letter-spacing: -.025em; }
+.training-sections-heading p { margin: 0; color: var(--muted); font-size: 13px; }
+.training-resource-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.training-resource-card { display: flex; flex-direction: column; gap: 20px; }
+.training-resource-card .training-card-header > div { min-width: 0; }
+.training-video-icon { background: #eaf2ff; color: #2358a7; }
+.training-module-icon { background: var(--accent-soft); color: var(--text); }
+.training-resource-empty { display: flex; align-items: center; gap: 12px; flex: 1; min-height: 110px; padding: 17px; border: 1px dashed var(--line); border-radius: 12px; background: var(--surface-2); }
+.training-resource-empty > span { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 12px; background: var(--surface); color: var(--muted); }
+.training-resource-empty b { display: block; color: var(--text); font-size: 13px; }
+.training-resource-empty p { margin: 4px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.training-progress-card { order: initial; }
+.training-progress-card .training-employee-lookup { max-width: 580px; margin-top: 20px; }
+.training-progress-card .training-lookup-controls { margin-top: 8px; }
+.training-progress-card .training-privacy-note { max-width: 580px; }
+@media (max-width: 700px) { .training-resource-grid { grid-template-columns: 1fr; gap: 12px; }.training-resource-card { gap: 16px; }.training-resource-empty { min-height: 84px; } }
+
+/* Screenshot-style training: a simple heading and full-width stacked cards. */
+.training-master { gap: 16px; }
+.training-page-heading { display: flex; align-items: flex-start; margin: 0 0 14px; }
+.training-page-heading h1 { margin: 5px 0; }
+.training-page-heading p { margin: 0; }
+.training-page-heading > svg { flex: none; margin: 8px 2px 0; color: var(--focus); }
+.training-resource-grid { grid-template-columns: 1fr; gap: 16px; }
+.training-master-card { padding: 20px; border-radius: 18px; }
+.training-video-card { border-top: 3px solid #2680d9; }
+.training-module-card-section { border-top: 3px solid var(--accent); }
+.training-progress-card { border-top: 3px solid var(--green); }
+.training-resource-card { gap: 16px; }
+.training-card-header { padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.training-card-header h2 { font-size: 16px; }
+.training-card-header p { font-size: 12px; }
+.training-resource-empty { display: flex; align-items: center; justify-content: center; min-height: 80px; padding: 18px; border: 1px dashed var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 13px; text-align: center; line-height: 1.5; }
+.training-progress-card .training-employee-lookup { margin-top: 18px; }
+@media (max-width: 700px) { .training-master-card { padding: 16px; }.training-resource-grid { gap: 12px; }.training-resource-empty { min-height: 74px; }.training-page-heading { margin-bottom: 4px; } }

@@ -1,98 +1,65 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
-import { BookOpen, CheckCircle2, Clock3, FileText, PlayCircle, X } from 'lucide-react';
-import type { EmployeeDirectory } from '@/lib/employee-directory';
-import type { Employee, Site } from '@/lib/types';
+import { useEffect, useState } from 'react';
+import { BookOpen, CheckCircle2, ChevronRight, FileText, Info, LockKeyhole, PlayCircle, X } from 'lucide-react';
+import type { Site } from '@/lib/types';
+import { splitTrainingCatalog, type TrainingCatalog, type TrainingMaterial } from '@/lib/training';
 import { LANGUAGE_LOCALE } from '@/lib/i18n';
 import { useI18n } from './I18nProvider';
 
-type Props = { site: Site | null; directory: EmployeeDirectory };
-type Material = { title: string; description: string; type: 'Video' | 'Module'; durationMinutes?: number };
-type TrainingCheck = { employee: Employee; completed: string[]; pending: string[]; hasRecords: boolean };
-type UiMessage = { key: string; params?: Record<string, string | number> };
+type Props = {
+  site: Site | null;
+  /** The caller must supply only materials authorized for the current tenant and site. */
+  catalog?: TrainingCatalog;
+};
 
-// Empty until the training team publishes material; the sections say so until then.
-const TRAINING_VIDEOS: Material[] = [];
-const TRAINING_MODULES: Material[] = [];
-
-const ALL_TOPICS = [...TRAINING_VIDEOS.map((item) => item.title), ...TRAINING_MODULES.map((item) => item.title)];
-
-export default function TrainingPortal({ site, directory }: Props) {
+export default function TrainingPortal({ site, catalog = null }: Props) {
   const { language, T } = useI18n();
   const locale = LANGUAGE_LOCALE[language];
+  const [material, setMaterial] = useState<TrainingMaterial | null>(null);
+  const [checkMessage, setCheckMessage] = useState('');
   const [employeeCode, setEmployeeCode] = useState('');
-  const [check, setCheck] = useState<TrainingCheck | null>(null);
-  const [message, setMessage] = useState<UiMessage | null>(null);
-  const [material, setMaterial] = useState<Material | null>(null);
-  const [checking, setChecking] = useState(false);
+  useEffect(() => { setMaterial(null); setCheckMessage(''); setEmployeeCode(''); }, [site?.id]);
+  const { videos, modules } = splitTrainingCatalog(catalog);
 
-  async function checkTraining(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const code = employeeCode.trim().toUpperCase();
-    if (!code) {
-      setMessage({ key: 'Enter your Employee Code to check training.' });
-      setCheck(null);
-      return;
-    }
-    setChecking(true);
-    try {
-      const found = await directory.findByEmployeeNo(site?.id ?? '', code);
-      if (!found) {
-        setCheck(null);
-        setMessage(site
-          ? { key: 'No employee profile for {code} was found at {site}. Check the code and try again.', params: { code, site: site.name } }
-          : { key: 'No employee profile for {code} was found. Check the code and try again.', params: { code } });
-        return;
-      }
-      // A master profile does not establish training completion. Keep that status unknown.
-      const completed: string[] = [];
-      setCheck({
-        employee: found,
-        completed,
-        pending: [],
-        hasRecords: false
-      });
-      setMessage(null);
-    } catch {
-      setCheck(null);
-      setMessage({ key: 'The employee directory is unavailable right now. Try again in a moment.' });
-    } finally {
-      setChecking(false);
-    }
+  function materialList(items: readonly TrainingMaterial[]) {
+    return <div className="training-master-list">{items.map((item) => <button type="button" className="training-master-material" key={item.id} onClick={() => setMaterial(item)}>
+      <span className="training-material-symbol">{item.type === 'video' ? <PlayCircle size={21} /> : <FileText size={21} />}</span>
+      <span className="training-material-copy"><b>{item.title}</b>{item.description && <small>{item.description}</small>}<span>{item.type === 'video' ? T('Video') : item.format.toUpperCase()}{item.type === 'video' && item.durationMinutes != null && item.durationMinutes >= 0 && <> · {T('{count} minutes', { count: new Intl.NumberFormat(locale).format(item.durationMinutes) })}</>}</span></span>
+      <ChevronRight size={18} aria-hidden="true" />
+    </button>)}</div>;
   }
 
-  return <section className="page-panel training-portal">
-    <div className="page-heading"><div><span className="eyebrow">{T('LEARN & REFRESH')} · {site?.name ?? T('SITE')}</span><h1>{T('Training Management')}</h1><p>{T('Browse safety learning material and check your own training status.')}</p></div><BookOpen size={28} /></div>
+  return <section className="page-panel training-portal training-master">
+    <div className="page-heading training-page-heading">
+      <div><span className="eyebrow">{T('LEARN & REFRESH')} · {site?.name || T('SITE')}</span><h1>{T('Training Management')}</h1><p>{T('Browse safety learning material and check your own training status.')}</p></div>
+      <BookOpen size={28} aria-hidden="true" />
+    </div>
+    <div className="training-preview-banner"><Info size={17} aria-hidden="true" /><span>{T('UI preview only. Training content and personal records are not connected.')}</span></div>
 
-    <section className="training-section training-videos">
-      <div className="training-section-heading"><span className="training-section-icon"><PlayCircle size={19} /></span><div><h2>📺 {T('Training Videos')}</h2><small>{T('Choose a video to preview')}</small></div></div>
-      {TRAINING_VIDEOS.length
-        ? <div className="training-material-list">{TRAINING_VIDEOS.map((item) => <button type="button" className="training-material-row" key={item.title} onClick={() => setMaterial(item)}><span className="training-material-icon video"><PlayCircle size={18} /></span><span><b>{item.title}</b><small>{item.description}</small></span>{item.durationMinutes !== undefined && <span className="training-material-meta"><Clock3 size={13} />{T('{count} minutes', { count: new Intl.NumberFormat(locale).format(item.durationMinutes) })}</span>}</button>)}</div>
-        : <div className="training-empty">{T('No training videos have been published yet.')}</div>}
+    <div className="training-resource-grid">
+      <section className="training-master-card training-resource-card training-video-card" aria-labelledby="training-videos-title">
+        <div className="training-card-header"><span className="training-card-icon training-video-icon"><PlayCircle size={22} aria-hidden="true" /></span><div><h2 id="training-videos-title">{T('Training Videos')}</h2><p>{T('Choose a video to preview')}</p></div></div>
+        {catalog === null ? <div className="training-resource-empty">{T('Training videos are not connected yet.')}</div>
+          : videos.length ? materialList(videos) : <div className="training-resource-empty">{T('No training videos have been published yet.')}</div>}
+      </section>
+      <section className="training-master-card training-resource-card training-module-card-section" aria-labelledby="training-modules-title">
+        <div className="training-card-header"><span className="training-card-icon training-module-icon"><BookOpen size={22} aria-hidden="true" /></span><div><h2 id="training-modules-title">{T('Training Modules')}</h2><p>{T('PPT, PDF and image resources')}</p></div></div>
+        {catalog === null ? <div className="training-resource-empty">{T('Training modules are not connected yet.')}</div>
+          : modules.length ? materialList(modules) : <div className="training-resource-empty">{T('No training material has been published yet.')}</div>}
+      </section>
+    </div>
+
+    <section className="training-master-card training-progress-card" aria-labelledby="training-progress-title">
+      <div className="training-card-header"><span className="training-card-icon progress"><CheckCircle2 size={21} aria-hidden="true" /></span><div><h2 id="training-progress-title">{T('My Training')}</h2><p>{T('Check your personal training progress')}</p></div></div>
+      <form className="training-employee-lookup" onSubmit={(event) => { event.preventDefault(); setCheckMessage(employeeCode.trim() ? 'Training lookup is not connected yet. No employee code was sent or saved.' : 'Enter your Employee Code to check training.'); }}>
+        <label htmlFor="training-employee-code">{T('Employee Code')}</label>
+        <div className="training-lookup-controls"><input id="training-employee-code" name="employeeCode" type="text" autoComplete="off" placeholder={T('Enter Employee Code')} value={employeeCode} required onChange={(event) => { setEmployeeCode(event.target.value); setCheckMessage(''); }} /><button type="submit" className="primary-button">{T('Check Training')}</button></div>
+      </form>
+      {checkMessage && <div className="training-lookup-message" role="status">{T(checkMessage)}</div>}
+      <div className="training-privacy-note"><LockKeyhole size={16} aria-hidden="true" /><span>{T('Personal records will require secure verification when this feature is configured.')}</span></div>
     </section>
 
-    <section className="training-section training-modules">
-      <div className="training-section-heading"><span className="training-section-icon"><BookOpen size={19} /></span><div><h2>📚 {T('Training Modules')}</h2><small>{T('Reference guides and standards')}</small></div></div>
-      {TRAINING_MODULES.length
-        ? <div className="training-module-grid">{TRAINING_MODULES.map((item) => <button type="button" className="training-module-card" key={item.title} onClick={() => setMaterial(item)}><FileText size={18} /><span><b>{item.title}</b><small>{item.description}</small></span></button>)}</div>
-        : <div className="training-empty">{T('No training material has been published yet.')}</div>}
-    </section>
-
-    <section className="training-section training-check">
-      <div className="training-section-heading"><span className="training-section-icon"><CheckCircle2 size={19} /></span><div><h2>✅ {T('Check My Training')}</h2><small>{T('View applicable, available, pending and completed learning')}</small></div></div>
-      <p className="training-check-help">{T('Enter your own Employee Code. The profile is read from the employee master for the selected site.')}</p>
-      <form className="training-check-form" onSubmit={checkTraining}><label htmlFor="training-employee-code" className="sr-only">{T('Employee Code')}</label><input id="training-employee-code" autoComplete="off" value={employeeCode} onChange={(event) => { setEmployeeCode(event.target.value.toUpperCase()); setCheck(null); setMessage(null); }} placeholder={T('Enter Employee Code')} required /><button type="submit" className="primary-button" disabled={checking}>{T(checking ? 'Checking…' : 'Check')}</button></form>
-      {message && <div className="inline-notice warning training-check-message" role="status">{T(message.key, message.params)}</div>}
-      {check && <div className="training-results" aria-live="polite">
-        <div className="training-employee-found"><span className="live-dot" /><b>{check.employee.name}</b><span>{check.employee.empNo} · {check.employee.designation}</span></div>
-        {!check.hasRecords && <div className="inline-notice warning" role="status">{T('This profile was found in the employee master, but training completion records are not connected yet.')}</div>}
-        {check.hasRecords && <div className="training-count-grid"><div><small>{T('Applicable')}</small><b>{ALL_TOPICS.length}</b></div><div><small>{T('Available')}</small><b>{ALL_TOPICS.length}</b></div><div><small>{T('Pending')}</small><b>{check.pending.length}</b></div><div><small>{T('Completed')}</small><b>{check.completed.length}</b></div></div>}
-        {check.completed.length > 0 && <div className="training-result-list"><h3>✅ {T('Completed Trainings')} ({check.completed.length})</h3>{check.completed.map((topic) => <div className="training-result-row completed" key={topic}><CheckCircle2 size={15} /><span>{topic}</span><small>{T('Completed')}</small></div>)}</div>}
-        {check.pending.length > 0 && <div className="training-result-list"><h3>⏳ {T('Pending Trainings')} ({check.pending.length})</h3>{check.pending.map((topic) => <div className="training-result-row pending" key={topic}><Clock3 size={15} /><span>{topic}</span><small>{T('Not completed')}</small></div>)}</div>}
-      </div>}
-    </section>
-
-    {material && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="training-material-title"><div className="modal training-material-modal"><div className="modal-header"><div><span className="eyebrow">{T('TRAINING VIEWER')} · {T(material.type)}</span><h2 id="training-material-title">{material.title}</h2></div><button className="close-button" type="button" onClick={() => setMaterial(null)} aria-label={T('Close training viewer')}><X /></button></div><p>{material.description}</p><div className="training-material-placeholder"><FileText size={27} /><b>{T('Learning material preview')}</b><small>{T('No file or video link has been published for this material yet.')}</small></div><button className="secondary-button full-button" type="button" onClick={() => setMaterial(null)}>{T('Close')}</button></div></div>}
+    {material && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="training-material-title"><div className="modal training-material-modal"><div className="modal-header"><div><span className="eyebrow">{T('TRAINING VIEWER')} · {material.type === 'video' ? T('Video') : material.format.toUpperCase()}</span><h2 id="training-material-title">{material.title}</h2></div><button className="close-button" type="button" onClick={() => setMaterial(null)} aria-label={T('Close training viewer')}><X /></button></div>{material.description && <p>{material.description}</p>}<div className="training-material-placeholder"><FileText size={27} /><b>{T('Learning material preview')}</b><small>{T('Material viewing is not connected in this UI preview.')}</small></div><button className="secondary-button full-button" type="button" onClick={() => setMaterial(null)}>{T('Close')}</button></div></div>}
   </section>;
 }
