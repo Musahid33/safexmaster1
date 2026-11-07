@@ -5,7 +5,8 @@ import {
   LockKeyhole, LogIn, Mail, MapPin, Palette, Phone, ShieldCheck, Smartphone, UserRound, X
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import { useActionState, useState, type FormEvent } from 'react';
+import { companyLogin } from '@/app/admin-auth/actions';
 import type { TenantBranding } from '@/lib/types';
 import { APP_VERSION, SAFEX_WEBSITE_URL } from '@/lib/app-info';
 import { portalName } from '@/lib/portal-branding';
@@ -158,15 +159,19 @@ export function CompanyAboutPage({ profile, onBack }: { profile: CompanyProfile 
   </section>;
 }
 
-export function AccountManagementPage({ onBack }: { onBack: () => void }) {
+export function AccountManagementPage({ companySlug, onBack }: { companySlug: string | null; onBack: () => void }) {
   const { T } = useI18n();
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loginState, loginAction, loginPending] = useActionState(companyLogin, { error: '' });
   function handleLogin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    event.currentTarget.reset();
-    setShowPassword(false);
-    setMessage('Login is not connected in this UI preview. No credentials were sent.');
+    setMessage('');
+    if (!companySlug) {
+      event.preventDefault();
+      event.currentTarget.reset();
+      setShowPassword(false);
+      setMessage('Company Admin login is unavailable until this company portal is connected. No credentials were sent.');
+    }
   }
   return <section className="page-panel account-management-page">
     <div className="login-page-shell">
@@ -188,14 +193,15 @@ export function AccountManagementPage({ onBack }: { onBack: () => void }) {
           <div className="account-form-card">
             <div className="account-card-body">
               <div className="account-form-intro"><div><h2>{T('Welcome Back')}</h2><p>{T('Sign in to continue to your account.')}</p></div></div>
-              <form className="account-master-form" onSubmit={handleLogin}>
-                <div className="account-field"><label htmlFor="account-username">{T('Username')}</label><div className="account-field-control"><UserRound size={21} aria-hidden="true" /><input id="account-username" name="username" type="text" placeholder={T('Enter your username')} autoComplete="off" required /></div></div>
-                <div className="account-field"><label htmlFor="account-password">{T('Password')}</label><div className="account-field-control"><LockKeyhole size={21} aria-hidden="true" /><input id="account-password" name="password" type={showPassword ? 'text' : 'password'} placeholder={T('Enter your password')} autoComplete="off" required /><button type="button" className="account-visibility" aria-label={T(showPassword ? 'Hide password' : 'Show password')} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button></div></div>
-                <button className="primary-button account-submit" type="submit"><span>{T('Sign In')}</span><ArrowRight size={20} aria-hidden="true" /></button>
+              <form className="account-master-form" action={loginAction} onSubmit={handleLogin}>
+                <input type="hidden" name="company" value={companySlug ?? ''} />
+                <div className="account-field"><label htmlFor="account-username">{T('Username')}</label><div className="account-field-control"><UserRound size={21} aria-hidden="true" /><input id="account-username" name="username" type="text" placeholder={T('Enter your username')} autoComplete="username" required /></div></div>
+                <div className="account-field"><label htmlFor="account-password">{T('Password')}</label><div className="account-field-control"><LockKeyhole size={21} aria-hidden="true" /><input id="account-password" name="password" type={showPassword ? 'text' : 'password'} placeholder={T('Enter your password')} autoComplete="current-password" required /><button type="button" className="account-visibility" aria-label={T(showPassword ? 'Hide password' : 'Show password')} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)}>{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button></div></div>
+                <button className="primary-button account-submit" type="submit" disabled={loginPending}><span>{T(loginPending ? 'Signing in…' : 'Sign In')}</span><ArrowRight size={20} aria-hidden="true" /></button>
                 <button className="account-reset" type="button" onClick={() => setMessage('Password reset is not connected in this UI preview.')}>{T('Reset Password')}</button>
               </form>
-              {message && <div className="inline-notice account-form-message" role="status">{T(message)}</div>}
-              <div className="account-preview-note"><Info size={16} aria-hidden="true" /><span>{T('UI preview only. Login and password reset are not connected. Please do not enter real credentials.')}</span></div>
+              {(message || loginState.error) && <div className="inline-notice account-form-message" role="status">{T(message || loginState.error)}</div>}
+              <div className="account-preview-note"><Info size={16} aria-hidden="true" /><span>{T(companySlug ? 'Company Admin sign-in. Password reset is not connected yet.' : 'Company Admin login is not connected to a company yet. Please do not enter real credentials.')}</span></div>
             </div>
           </div>
         </div>

@@ -1,0 +1,35 @@
+import { Award, Bell, BookOpen, Building2, CalendarDays, ChartNoAxesCombined, ClipboardList, FileSearch, FileText, GraduationCap, HardHat, LayoutDashboard, ListChecks, MapPin, Megaphone, Search, Settings, ShieldAlert, ShieldCheck, TriangleAlert, UserRound, UsersRound, type LucideIcon } from 'lucide-react';
+
+type Kind = 'dashboard' | 'list' | 'settings';
+export type CompanyAdminPage = { slug: string; title: string; description: string; group: string; icon: LucideIcon; kind: Kind; columns?: string[]; action?: string; fields?: string[] };
+export const companyPages: CompanyAdminPage[] = [
+  { slug: 'dashboard', title: 'Dashboard', description: 'Your company workspace, at a glance.', group: 'WORKSPACE', icon: LayoutDashboard, kind: 'dashboard' },
+  { slug: 'employees', title: 'Employee Management', description: 'View and manage employees in your company workspace.', group: 'COMPANY', icon: UsersRound, kind: 'list', action: 'Add Employee', columns: ['Employee', 'Employee code', 'Department', 'Location', 'Status'] },
+  { slug: 'locations', title: 'Locations', description: 'View the locations associated with your company.', group: 'COMPANY', icon: MapPin, kind: 'list', action: 'Add location', columns: ['Location', 'Region', 'Emergency contact', 'Status'] },
+  { slug: 'departments', title: 'Departments', description: 'View your company departments and their locations.', group: 'COMPANY', icon: Building2, kind: 'list', action: 'Add department', columns: ['Department', 'Location', 'Employees', 'Status'] },
+  { slug: 'roles', title: 'Roles & Permissions', description: 'Review access information for your company workspace.', group: 'COMPANY', icon: ShieldCheck, kind: 'list', action: 'Add role', columns: ['Role', 'Description', 'Assigned users', 'Status'] },
+  { slug: 'safety-management', title: 'Safety Management', description: 'Review safety activity across your company.', group: 'SAFETY MANAGEMENT', icon: ClipboardList, kind: 'list', columns: ['Reference', 'Type', 'Location', 'Date', 'Status'] },
+  { slug: 'near-miss', title: 'Near Miss', description: 'Review near miss reports from your locations.', group: 'SAFETY MANAGEMENT', icon: ShieldAlert, kind: 'list', columns: ['Reference', 'Location', 'Reported', 'Date', 'Status'] },
+  { slug: 'hazard', title: 'Hazard', description: 'Review hazards reported across your company.', group: 'SAFETY MANAGEMENT', icon: TriangleAlert, kind: 'list', columns: ['Reference', 'Hazard', 'Location', 'Date', 'Status'] },
+  { slug: 'safety-observation', title: 'Safety Observation', description: 'View safety observations from your teams.', group: 'SAFETY MANAGEMENT', icon: Search, kind: 'list', columns: ['Reference', 'Observation', 'Location', 'Date', 'Status'] },
+  { slug: 'incident', title: 'Incident', description: 'Review reported incidents and their status.', group: 'SAFETY MANAGEMENT', icon: HardHat, kind: 'list', columns: ['Reference', 'Incident', 'Location', 'Date', 'Status'] },
+  { slug: 'investigation', title: 'Investigation', description: 'View safety investigation records.', group: 'SAFETY MANAGEMENT', icon: FileSearch, kind: 'list', columns: ['Reference', 'Investigation', 'Location', 'Updated', 'Status'] },
+  { slug: 'capa', title: 'CAPA', description: 'Review corrective and preventive actions.', group: 'SAFETY MANAGEMENT', icon: ListChecks, kind: 'list', columns: ['Reference', 'Action', 'Location', 'Due date', 'Status'] },
+  { slug: 'training', title: 'Training Management', description: 'View the training available to your workforce.', group: 'CONTENT', icon: GraduationCap, kind: 'list', action: 'Create Training', columns: ['Training', 'Type', 'Location', 'Updated', 'Status'] },
+  { slug: 'documents', title: 'Documents', description: 'Review company documents and compliance material.', group: 'CONTENT', icon: FileText, kind: 'list', action: 'Upload SOP', columns: ['Document', 'Category', 'Location', 'Updated', 'Status'] },
+  { slug: 'rewards', title: 'Rewards & Recognition', description: 'View recognition across your company locations.', group: 'CONTENT', icon: Award, kind: 'list', action: 'Add Reward', columns: ['Recognition', 'Recipient', 'Location', 'Date', 'Status'] },
+  { slug: 'circulars', title: 'Circulars & Notices', description: 'View updates shared with your workforce.', group: 'CONTENT', icon: Megaphone, kind: 'list', action: 'Publish Circular', columns: ['Title', 'Type', 'Location', 'Published', 'Status'] },
+  { slug: 'events', title: 'Events', description: 'View company events and safety activities.', group: 'CONTENT', icon: CalendarDays, kind: 'list', action: 'Add Event', columns: ['Event', 'Location', 'Date', 'Status'] },
+  { slug: 'analytics', title: 'Reports & Analytics', description: 'Explore reports and activity across your company workspace.', group: 'INSIGHTS', icon: ChartNoAxesCombined, kind: 'list', action: 'Export', columns: ['Report', 'Location', 'Period', 'Status'] },
+  { slug: 'settings', title: 'Company Settings', description: 'Review settings for your company workspace.', group: 'SETTINGS', icon: Settings, kind: 'settings', fields: ['Company name', 'About us', 'Services', 'Address', 'Email address', 'Mobile number', 'Default language', 'Time zone'] },
+  { slug: 'profile', title: 'My Profile', description: 'Review your company administrator profile.', group: 'SETTINGS', icon: UserRound, kind: 'settings', fields: ['Full name', 'Email address', 'Phone number', 'Job title'] },
+  // Existing company-console routes remain available for navigation and bookmarks.
+  { slug: 'company-profile', title: 'Company Profile', description: 'Review your company information and contact details.', group: 'MORE', icon: Building2, kind: 'settings', fields: ['Company name', 'About us', 'Services', 'Address', 'Email address', 'Mobile number'] },
+  { slug: 'users', title: 'Users', description: 'View the people in your company workspace.', group: 'MORE', icon: UsersRound, kind: 'list', action: 'Add user', columns: ['User', 'Employee code', 'Location', 'Status'] },
+  { slug: 'reports', title: 'Safety Reports', description: 'Review safety reports from your locations.', group: 'MORE', icon: ClipboardList, kind: 'list', action: 'Export reports', columns: ['Reference', 'Type', 'Location', 'Date', 'Status'] },
+  { slug: 'resources', title: 'Safety Resources', description: 'Organise safety resources for your company.', group: 'MORE', icon: BookOpen, kind: 'list', action: 'Add resource', columns: ['Resource', 'Type', 'Location', 'Updated', 'Status'] },
+  { slug: 'notifications', title: 'Notifications', description: 'Keep up with company workspace updates.', group: 'MORE', icon: Bell, kind: 'list', action: 'Mark all as read', columns: ['Notification', 'Category', 'Received', 'Status'] },
+  { slug: 'support', title: 'Support', description: 'Find help for your company workspace.', group: 'MORE', icon: BookOpen, kind: 'list', action: 'New request', columns: ['Request', 'Category', 'Updated', 'Status'] },
+];
+export const companyGroups = [...new Set(companyPages.map((page) => page.group))];
+export const getCompanyPage = (slug: string) => companyPages.find((page) => page.slug === slug);

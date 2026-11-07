@@ -1,0 +1,15 @@
+/* Company Admin uses the shared console design tokens without altering the Employee Portal. */
+.company-admin-root .owner-workspace-icon { background: #285e73; }
+.company-admin-root .owner-hero { background: linear-gradient(112deg, #153b5c 0%, #1d5670 65%, #2b7484 100%); }
+.company-admin-root .company-logout { display:flex; align-items:center; gap:11px; margin:0 14px 4px; padding:10px; border:0; border-radius:7px; background:transparent; color:#91aabe; font-size:12px; text-align:left; opacity:.75; }
+.company-admin-root .company-logout span { margin-left:auto; color:#718ba2; font-size:9px; }
+.company-admin-root .company-quick-section { margin:0 0 22px; }
+.company-admin-root .company-quick-section .owner-section-heading { margin:6px 0 15px; }
+.company-admin-root .company-action-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.company-admin-root .company-action-grid button { display:flex; align-items:center; gap:11px; padding:13px; text-align:left; background:#fff; border:1px solid #e7edf2; border-radius:9px; color:#7890a2; }
+.company-admin-root .company-action-grid button > span { width:37px; height:37px; display:grid; place-items:center; border-radius:8px; background:#edf6fc; color:#6498bb; flex-shrink:0; }
+.company-admin-root .company-action-grid button b { flex:1; color:#5c7283; font-size:11px; }
+.company-admin-root .company-action-grid button > svg { color:#a7bbc8; }
+.company-admin-root .company-action-note { margin:8px 0 0; color:#a1afbb; font-size:10px; }
+@media(max-width:700px) { .company-admin-root .company-action-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:380px) { .company-admin-root .company-action-grid { grid-template-columns:1fr; } }
