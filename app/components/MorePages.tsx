@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  ArrowLeft, ArrowRight, BarChart3, Building2, Check, ChevronRight, ExternalLink, Eye, EyeOff, FileText, Globe2, GraduationCap, HardHat, Info,
+  ArrowLeft, ArrowRight, BarChart3, Building2, ChevronRight, ExternalLink, Eye, EyeOff, FileText, GraduationCap, HardHat, Info,
   LockKeyhole, LogIn, Mail, MapPin, Palette, Phone, ShieldCheck, Smartphone, UserRound, X
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';

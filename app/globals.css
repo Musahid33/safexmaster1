@@ -648,36 +648,6 @@ textarea.form-control { min-height: auto; resize: vertical; line-height: 1.5; }
 .profile-search-result h3 { margin: 3px 0; color: var(--text); font-size: 13px; }
 .profile-search-result p, .profile-search-result small { margin: 0; color: var(--muted); font-size: 9px; }
 .profile-search-result > div:last-child { min-width: 0; }
-.account-login-overlay { z-index: 80; background: rgba(232, 239, 248, .72); backdrop-filter: blur(6px); }
-.account-login-modal { width: min(100%, 880px); max-height: min(94vh, 1100px); overflow-y: auto; border: 1px solid #edf0f5; border-radius: 28px; background: #fff; color: #142033; padding: clamp(28px, 5.4vw, 52px); box-shadow: 0 26px 90px rgba(12, 32, 61, .16); }
-.account-login-heading { align-items: flex-start; gap: 15px; margin-bottom: 24px; }
-.account-login-heading h2 { margin: 0; color: #111827; font-size: clamp(34px, 6vw, 58px); font-weight: 850; letter-spacing: -.045em; line-height: 1.08; }
-.account-login-heading p { margin: 7px 0 0; color: #78869a; font-size: clamp(14px, 2vw, 18px); }
-.account-login-close { border-color: #e5e9ef; background: #fff; color: #586579; }
-.account-role-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 13px; margin: 0 0 21px; }
-.account-role-tab { position: relative; min-width: 0; min-height: 180px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; border: 1px solid #e1e6ed; border-radius: 16px; background: #fff; color: #354256; padding: 13px 9px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s, color .15s, transform .15s; }
-.account-role-tab:hover { border-color: #9bceff; transform: translateY(-1px); }
-.account-role-tab.selected { border-color: #c7e5ff; background: #e5f3ff; color: #0879ec; }
-.account-role-tab.selected::after { position: absolute; bottom: -11px; left: calc(50% - 10px); width: 0; height: 0; border-top: 11px solid #1185f5; border-right: 10px solid transparent; border-left: 10px solid transparent; content: ''; }
-.account-role-tab > svg { width: 38px; height: 38px; stroke-width: 2.8; }
-.account-role-tab b { color: inherit; font-size: 15px; font-weight: 800; line-height: 1.3; }
-.account-role-tab small { color: #778499; font-size: 11px; line-height: 1.3; }
-.account-login-info { display: flex; align-items: center; gap: 11px; margin: 0 0 17px; border: 1px solid #d9efff; border-radius: 12px; background: #e7f5ff; padding: 12px 14px; color: #1b3452; }
-.account-info-icon { width: 34px; height: 34px; display: grid; place-items: center; flex: none; border-radius: 50%; background: #1185f5; color: #fff; }
-.account-login-info > span:last-child { min-width: 0; display: grid; gap: 3px; }
-.account-login-info b { font-size: 12px; font-weight: 850; }
-.account-login-info small { color: #5c7188; font-size: 10px; line-height: 1.4; }
-.account-login-form { display: grid; }
-.account-login-form > label { margin: 13px 0 7px; color: #172033; font-size: 13px; font-weight: 800; }
-.account-input-wrap { min-width: 0; min-height: 66px; display: flex; align-items: center; gap: 12px; border: 1px solid #dce2ea; border-radius: 12px; background: #fff; color: #67768b; padding: 0 14px; transition: border-color .15s, box-shadow .15s; }
-.account-input-wrap:focus-within { border-color: #1484f5; box-shadow: 0 0 0 3px rgba(20, 132, 245, .11); }
-.account-input-wrap > svg { flex: none; }
-.account-input-wrap input { width: 100%; min-width: 0; min-height: 60px; flex: 1; border: 0; outline: 0; background: transparent; color: #162235; font-size: 13px; }
-.account-input-wrap input::placeholder { color: #8793a4; opacity: 1; }
-
-.account-primary-button { width: 100%; min-height: 68px; display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 17px; border: 0; border-radius: 12px; background: #0c7ff2; color: #fff; padding: 0 18px; font-size: 17px; font-weight: 800; cursor: pointer; box-shadow: 0 5px 12px rgba(12, 127, 242, .16); transition: background .15s, transform .15s; }
-.account-primary-button:hover { background: #066fe0; transform: translateY(-1px); }
-.account-login-message { margin-top: 13px; border: 1px solid #f2dca4; border-radius: 10px; background: #fff7e5; color: #6c4a00; padding: 10px 12px; font-size: 10px; line-height: 1.45; }
 
 .report-picker-modal { width: min(100%, 720px); }
 .report-picker-modal .modal-header p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
@@ -857,29 +827,6 @@ textarea.form-control { min-height: auto; resize: vertical; line-height: 1.5; }
   .choice-row { gap: 5px; }
   .choice-chip { min-height: 47px; font-size: 9px; }
   .more-row { padding: 10px; }
-  .account-login-modal { width: min(100%, 540px); max-height: calc(100dvh - 16px); padding: 20px 16px; border-radius: 18px; }
-  .account-login-heading { margin-bottom: 17px; }
-  .account-login-heading h2 { font-size: 31px; }
-  .account-login-heading p { font-size: 14px; }
-  .account-login-close { width: 34px; height: 34px; }
-  .account-role-grid { gap: 6px; margin-bottom: 17px; }
-  .account-role-tab { min-height: 101px; gap: 6px; border-radius: 11px; padding: 8px 4px; }
-  .account-role-tab > svg { width: 24px; height: 24px; }
-  .account-role-tab b { font-size: 9px; }
-  .account-role-tab small { font-size: 7px; }
-  .account-login-info { gap: 8px; margin-bottom: 11px; padding: 10px; }
-  .account-info-icon { width: 28px; height: 28px; }
-  .account-login-info b { font-size: 10px; }
-  .account-login-info small { font-size: 8px; }
-  .account-login-form > label { margin: 10px 0 6px; font-size: 11px; }
-  .account-input-wrap { min-height: 52px; gap: 8px; border-radius: 10px; padding: 0 10px; }
-  .account-input-wrap > svg { width: 17px; height: 17px; }
-  .account-input-wrap input { min-height: 47px; font-size: 11px; }
-  
-  
-  
-  
-  .account-primary-button { min-height: 53px; margin-top: 14px; border-radius: 10px; font-size: 14px; }
   
 }
 
@@ -1873,18 +1820,6 @@ textarea.form-control { min-height: 128px; }
   .report-category-copy small { font-size: 12px; }
   .report-upload small { display: inline; white-space: normal; text-align: right; }
   .field-label { margin-top: var(--space-1); }
-  .account-login-modal { max-height: calc(100dvh - 16px); padding: 24px 16px; border-radius: 20px; }
-  .account-login-heading { margin-bottom: var(--space-2); }
-  .account-login-heading h2 { font-size: clamp(30px, 8vw, 40px); }
-  .account-role-grid { gap: 8px; margin-bottom: var(--space-2); }
-  .account-role-tab { min-height: 126px; gap: 8px; padding: 10px 6px; }
-  .account-role-tab b { font-size: 12px; }
-  .account-role-tab small { font-size: 11px; }
-  .account-input-wrap { min-height: 56px; }
-  .account-input-wrap input { min-height: 52px; font-size: 16px; }
-  
-  
-  .account-primary-button { min-height: 56px; font-size: 16px; }
   .training-count-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .training-results { gap: var(--space-1); }
   .training-count-grid > div { min-height: 72px; }
@@ -2056,7 +1991,6 @@ textarea.form-control { min-height: 128px; }
 /* Device-specific form sizing and remaining small-text cleanup. */
 .install-company-kicker { font-size: 12px; }
 .site-modal .form-control { min-height: 52px; font-size: 16px; }
-.account-login-form > label { font-size: 14px; line-height: 1.35; }
 
 /* Report chooser sheet follows the centre-report reference: handle, clear title,
    icon-led rows and a compact voice affordance while retaining all nine types. */
@@ -2146,28 +2080,6 @@ textarea.form-control { min-height: 128px; }
 .life-rule-number { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: var(--primary); font-weight: 800; }
 .life-rule-list h3 { margin: 0 0 7px; font-size: 16px; color: var(--text); }
 .life-rule-list p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text); }
-
-/* Small protected backend editor. */
-.recognition-admin { min-height: 100vh; max-width: 680px; margin: 0 auto; padding: 32px 16px 60px; color: var(--text); background: var(--page); }
-.recognition-admin > a { color: var(--primary); font-weight: 700; text-decoration: none; }
-.recognition-admin h1 { margin: 20px 0 6px; font-size: 25px; }
-.recognition-admin > p { color: var(--muted); line-height: 1.5; }
-.recognition-admin-message { padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); }
-.recognition-admin-card { display: grid; gap: 9px; margin: 18px 0; padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
-.recognition-admin-card h2 { margin: 0 0 4px; font-size: 17px; }
-.recognition-admin-card label { font-size: 12px; font-weight: 700; }
-.recognition-admin-card input:not([type='checkbox']), .recognition-admin-card textarea, .recognition-admin-card select { display: block; width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; }
-.recognition-admin-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.recognition-admin-pair select { margin-top: 5px; }
-.recognition-admin-check { display: flex; align-items: flex-start; gap: 9px; line-height: 1.4; }
-.recognition-admin-check input { flex: none; width: 17px; height: 17px; margin: 0; }
-.recognition-admin-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.recognition-admin-card button { border: 1px solid var(--line); border-radius: 8px; background: var(--primary); color: white; padding: 9px 14px; font-size: 12px; font-weight: 700; cursor: pointer; }
-.recognition-admin-card button:disabled { opacity: .55; cursor: not-allowed; }
-.recognition-admin-actions button + button { background: var(--surface-2); color: var(--text); }
-.recognition-admin-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; border-top: 1px solid var(--line); padding: 12px 0; }
-.recognition-admin-row p { margin: 4px 0; overflow-wrap: anywhere; }
-.recognition-admin-row small { color: var(--muted); }
 
 /* ----------------------------------------------------------------------------------------------
  * Document vault register
@@ -2435,32 +2347,14 @@ textarea.form-control { min-height: 128px; }
 
 /* Tenant-ready training master UI */
 .training-master { display: grid; gap: 18px; }
-.training-hero { position: relative; display: flex; justify-content: space-between; align-items: center; overflow: hidden; gap: 20px; padding: 30px 32px; border-radius: 20px; background: linear-gradient(120deg, #102c4e, #165786); color: #fff; }
-.training-hero::after { content: ''; position: absolute; right: -30px; top: -70px; width: 210px; height: 210px; border: 1px solid rgba(255,255,255,.1); border-radius: 50%; box-shadow: 0 0 0 26px rgba(255,255,255,.035), 0 0 0 56px rgba(255,255,255,.025); }
-.training-hero-content, .training-hero-icon { position: relative; z-index: 1; }
-.training-hero-label { display: inline-flex; align-items: center; gap: 7px; color: #b9dded; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
-.training-hero h1 { margin: 11px 0 5px; color: #fff; font-size: clamp(25px, 3vw, 34px); letter-spacing: -.035em; line-height: 1.15; }
-.training-hero p { margin: 0 0 17px; color: #d7e9f3; font-size: 14px; }
-.training-site-pill { display: inline-flex; padding: 7px 11px; border: 1px solid rgba(255,255,255,.2); border-radius: 100px; background: rgba(255,255,255,.09); color: #fff; font-size: 11px; font-weight: 700; }
-.training-hero-icon { display: grid; place-items: center; width: 80px; height: 80px; flex: none; border: 1px solid rgba(255,255,255,.2); border-radius: 22px; background: rgba(255,255,255,.12); color: #e3f4ff; }
 .training-preview-banner { display: flex; align-items: flex-start; gap: 9px; padding: 12px 15px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); color: var(--muted); font-size: 12px; line-height: 1.5; }
 .training-preview-banner svg { flex: none; }
-.training-master-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .training-master-card { padding: 22px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: 0 8px 25px rgba(20,42,66,.04); }
 .training-card-header { display: flex; align-items: center; gap: 12px; }
 .training-card-icon { width: 44px; height: 44px; display: grid; place-items: center; flex: none; border-radius: 13px; background: var(--accent-soft); color: var(--focus); }
 .training-card-icon.progress { background: var(--green-soft); color: var(--green); }
 .training-card-header h2 { margin: 0; color: var(--text); font-size: 16px; line-height: 1.3; }
 .training-card-header p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
-.training-filter-list { display: flex; flex-wrap: wrap; gap: 7px; margin: 22px 0 16px; }
-.safex-app .training-filter-list button { min-height: 40px; padding: 0 15px; border: 1px solid var(--line); border-radius: 99px; background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
-.safex-app .training-filter-list button.active { border-color: var(--primary); background: var(--primary); color: #fff; }
-.training-master-empty, .training-progress-placeholder { display: grid; justify-items: center; align-content: center; padding: 30px 18px; border: 1px dashed var(--line); border-radius: 14px; background: var(--surface-2); text-align: center; }
-.training-master-empty > span, .training-progress-placeholder > span { display: grid; place-items: center; width: 47px; height: 47px; border-radius: 15px; background: var(--surface); color: var(--muted); }
-.training-master-empty h3, .training-progress-placeholder h3 { margin: 14px 0 5px; color: var(--text); font-size: 14px; }
-.training-master-empty p, .training-progress-placeholder p { max-width: 34ch; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.training-progress-placeholder { margin-top: 22px; }
-.training-progress-foot { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: var(--muted); font-size: 12px; }
 .training-master-list { display: grid; gap: 9px; }
 .safex-app .training-master-material { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); text-align: left; cursor: pointer; }
 .training-master-material:hover { border-color: var(--focus); }
@@ -2468,7 +2362,7 @@ textarea.form-control { min-height: 128px; }
 .training-material-copy { display: grid; flex: 1; min-width: 0; gap: 3px; }
 .training-material-copy b { color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
 .training-material-copy small, .training-material-copy > span { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
-@media (max-width: 700px) { .training-master-grid { grid-template-columns: 1fr; }.training-hero { padding: 24px 20px; }.training-hero-icon { width: 56px; height: 56px; border-radius: 16px; }.training-hero-icon svg { width: 29px; height: 29px; }.training-master-card { padding: 18px; } }
+@media (max-width: 700px) {.training-master-card { padding: 18px; } }
 
 /* Employee-code lookup is a preview until a secure training service is configured. */
 .training-employee-lookup { margin-top: 22px; }
@@ -2484,48 +2378,22 @@ textarea.form-control { min-height: 128px; }
 
 /* Training screen refinements */
 .training-master { gap: 16px; }
-.training-hero { min-height: 200px; padding: 30px 36px; background: linear-gradient(120deg, var(--primary-strong), var(--primary) 60%, color-mix(in srgb, var(--primary) 75%, #4386af)); box-shadow: var(--shadow); }
-.training-hero-label { color: color-mix(in srgb, var(--accent) 75%, white); }
-.training-hero h1 { font-size: clamp(26px, 3.5vw, 36px); }
-.training-site-pill { align-items: center; gap: 6px; }
-.training-hero-icon { width: 88px; height: 88px; border-radius: 25px; background: rgba(255,255,255,.1); }
-.training-master-grid { gap: 18px; }
 .training-master-card { min-width: 0; padding: 24px; border-radius: var(--radius-card); box-shadow: var(--shadow-card); }
 .training-card-header h2 { font-size: 18px; }
 .training-card-header p { font-size: 13px; }
-.training-library-tools { margin-top: 22px; }
-.training-search { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 13px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); color: var(--muted); }
-.training-search:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
-.training-search svg { flex: none; }
-.safex-app .training-search input { width: 100%; min-width: 0; min-height: 46px; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 14px; }
-.training-search input::placeholder { color: var(--muted); opacity: 1; }
-.training-search input:disabled { cursor: not-allowed; opacity: .75; }
-.training-filter-list { margin: 14px 0 18px; }
-.training-master-empty { min-height: 220px; }
-.training-master-empty > span { width: 56px; height: 56px; border: 1px solid var(--line); border-radius: 18px; }
-.training-master-empty h3 { margin-top: 15px; font-size: 15px; }
-.training-master-empty p { max-width: 36ch; font-size: 13px; }
 .training-employee-lookup { margin-top: 24px; }
 .training-employee-lookup p { line-height: 1.5; }
 .training-lookup-controls { flex-wrap: wrap; }
 .safex-app .training-lookup-controls input { flex: 1 1 135px; }
 .safex-app .training-lookup-controls button { min-width: 92px; flex: 0 0 auto; }
 .training-privacy-note { line-height: 1.55; }
-.training-progress-foot { padding-top: 15px; border-top: 1px solid var(--line); }
 @media (max-width: 700px) {
-  .training-hero { min-height: 0; padding: 24px 20px; }
-  .training-hero p { font-size: 13px; }
-  .training-hero-icon { width: 56px; height: 56px; }
   .training-master-card { padding: 20px; }
   .training-progress-card { order: -1; }
-  .training-master-empty { min-height: 180px; }
 }
-@media (max-width: 360px) { .training-hero-icon { display: none; } .training-lookup-controls button { width: 100%; } }
+@media (max-width: 360px) { .training-lookup-controls button { width: 100%; } }
 
 /* Separate, uncluttered resource cards for the training library. */
-.training-sections-heading { margin: 8px 0 0; }
-.training-sections-heading h2 { margin: 4px 0; color: var(--text); font-size: clamp(20px, 2.3vw, 24px); line-height: 1.25; letter-spacing: -.025em; }
-.training-sections-heading p { margin: 0; color: var(--muted); font-size: 13px; }
 .training-resource-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
 .training-resource-card { display: flex; flex-direction: column; gap: 20px; }
 .training-resource-card .training-card-header > div { min-width: 0; }

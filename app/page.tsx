@@ -7,7 +7,7 @@ import {
   Smartphone, Sun, UserRound, X, Zap, MessageSquare
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
-import { forSelectedSite, siteStorageKey, validSavedSiteId } from '@/lib/site-selection';
+import { forSelectedSite, initialSiteId, siteStorageKey } from '@/lib/site-selection';
 import { portalName } from '@/lib/portal-branding';
 import { pendingReports, queueReport, syncQueuedReports, type ReportSender } from '@/lib/offline-report-queue';
 import { SAFETY_ALERTS, SAFETY_ALERT_FILTERS, type SafetyAlert, type SafetyAlertCategory } from '@/lib/safety-alerts';
@@ -84,7 +84,7 @@ function getUpcomingEventStatus(value: string): 'Today' | 'Tomorrow' | 'Upcoming
 export default function SafexHome() {
   const { language, setLanguage, T } = useI18n();
   // The UI preview is disconnected; a future tenant source will provide company and sites.
-  const { ready: directoryReady, tenantId, sites, directory, companyName, directoryMode, directoryReason, employeeCount, degraded } = useSafexBootstrap();
+  const { ready: directoryReady, tenantId, sites, directory, companyName, directoryMode, directoryReason, employeeCount } = useSafexBootstrap();
   // Derive the portal name only from the selected tenant's supplied company name.
   const brandCompanyName = (companyName ?? '').trim();
   const company = brandingFor(brandCompanyName);
@@ -94,10 +94,10 @@ export default function SafexHome() {
   const [page, setPage] = useState<PageKey>('home');
   const [accountReturnPage, setAccountReturnPage] = useState<PageKey>('home');
   const [reportOrigin, setReportOrigin] = useState<'home' | 'picker'>('home');
-  const [recognitions, setRecognitions] = useState<RecognitionGalleryItem[] | null>(null);
+  const [recognitions] = useState<RecognitionGalleryItem[] | null>(null);
   // Empty preview content for the vault and home feed.
-  const [vaultDocuments, setVaultDocuments] = useState<VaultDocument[]>([]);
-  const [contentFeed, setContentFeed] = useState<HomeFeedItem[]>([]);
+  const [vaultDocuments] = useState<VaultDocument[]>([]);
+  const [contentFeed] = useState<HomeFeedItem[]>([]);
   const [siteId, setSiteId] = useState('');
   const [siteReady, setSiteReady] = useState(false);
   const [siteDialog, setSiteDialog] = useState(false);
@@ -116,7 +116,7 @@ export default function SafexHome() {
   const [safetyAlertsOpen, setSafetyAlertsOpen] = useState(false);
   const [safetyAlertFilter, setSafetyAlertFilter] = useState<'All' | SafetyAlertCategory>('All');
   /** Alerts published from the console. Falls back to the (empty) built-in list when offline. */
-  const [publishedAlerts, setPublishedAlerts] = useState<SafetyAlert[]>(SAFETY_ALERTS);
+  const [publishedAlerts] = useState<SafetyAlert[]>(SAFETY_ALERTS);
   const [expandedSafetyAlertId, setExpandedSafetyAlertId] = useState<string | null>(null);
   const [sosOpen, setSosOpen] = useState(false);
   const [profileSearchOpen, setProfileSearchOpen] = useState(false);
@@ -185,12 +185,17 @@ export default function SafexHome() {
   // A site choice is remembered on this device for this tenant, not shared across tenants.
   useEffect(() => {
     if (!directoryReady || siteReady) return;
-    let savedSite: string | null = null;
-    try { if (tenantId) savedSite = validSavedSiteId(localStorage.getItem(siteStorageKey(tenantId)), sites); }
-    catch { /* Without storage, ask again on the next visit. */ }
-    if (savedSite) {
-      setSiteId(savedSite);
-      setSiteDraft(savedSite);
+    let savedId: string | null = null;
+    try { if (tenantId) savedId = localStorage.getItem(siteStorageKey(tenantId)); }
+    catch { /* Without storage, a multi-site tenant will need to choose again. */ }
+    const selectedSite = initialSiteId(savedId, sites);
+    if (selectedSite) {
+      setSiteId(selectedSite);
+      setSiteDraft(selectedSite);
+      setSiteDialog(false);
+      if (sites.length === 1 && tenantId) {
+        try { localStorage.setItem(siteStorageKey(tenantId), selectedSite); } catch { /* The selection still applies for this visit. */ }
+      }
     } else {
       setSiteId('');
       setSiteDraft('');

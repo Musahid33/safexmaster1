@@ -21,7 +21,7 @@ The SOS dialog uses the selected site's `sosNumber` field and never falls back t
 
 ## Site selection
 
-Once a tenant and its sites are connected, on a device's first visit the user chooses a site, even if only one is listed. The selection is remembered in local browser storage under that tenant ID; a removed or invalid site must be selected again. If storage is blocked or cleared, the choice is requested again. When multiple sites are available the header provides a site switcher.
+Once a tenant and its sites are connected, a single site is selected automatically. When multiple sites are available, the user chooses a site on the device's first visit. The selection is remembered in local browser storage under that tenant ID; a removed or invalid site must be selected again when there are multiple choices. If storage is blocked or cleared, a multi-site user is asked again. When multiple sites are available the header provides a site switcher.
 
 SOS reads only the selected site's configured number. Life Saving Rules come from the selected site's `lifeSavingRules`, and recognition items carry a `siteId` so the gallery displays only the selected site's entries. The UI-only preview has no configured rules, emergency number or recognitions. A future integration must provide a stable tenant ID and enforce tenant and site authorization server-side; browser storage and client-side filtering are not security boundaries.
 

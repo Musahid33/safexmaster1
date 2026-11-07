@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
-import { ArrowLeft, Check, ChevronRight, ImagePlus, LockKeyhole, MapPin, Search, Send, X } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ImagePlus, LockKeyhole, MapPin, Search, Send, X } from 'lucide-react';
 import type { EmployeeDirectory } from '@/lib/employee-directory';
 import type { Employee, Language, ReportType, Site } from '@/lib/types';
 import { supportsAnonymousReporting } from '@/lib/report-privacy';
