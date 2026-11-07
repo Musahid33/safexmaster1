@@ -1,0 +1,12 @@
+alter table public.company_admins add column username text check (username is null or (username = lower(username) and username ~ '^[a-z0-9][a-z0-9._-]{2,63}$'));
+create unique index company_admins_company_username_idx on public.company_admins(company_id, username) where username is not null;
+create table public.admin_login_attempts (bucket text primary key, attempts integer not null, expires_at timestamptz not null);
+alter table public.admin_login_attempts enable row level security;
+revoke all on public.admin_login_attempts from public, anon, authenticated;
+create index admin_login_attempts_expires_idx on public.admin_login_attempts(expires_at);
+create function public.check_admin_login_limit(p_bucket text, p_limit integer, p_window_seconds integer) returns boolean language plpgsql security definer set search_path = '' as $$ declare count_now integer; begin if p_bucket !~ '^[0-9a-f]{64}$' or p_limit not between 1 and 1000 or p_window_seconds not between 1 and 86400 then return false; end if; delete from public.admin_login_attempts where expires_at < now(); insert into public.admin_login_attempts as a(bucket,attempts,expires_at) values(p_bucket,1,now()+make_interval(secs => p_window_seconds)) on conflict(bucket) do update set attempts = case when a.expires_at < now() then 1 else a.attempts + 1 end, expires_at = case when a.expires_at < now() then now()+make_interval(secs => p_window_seconds) else a.expires_at end returning attempts into count_now; return count_now <= p_limit; end $$;
+revoke all on function public.check_admin_login_limit(text,integer,integer) from public,anon,authenticated;
+grant execute on function public.check_admin_login_limit(text,integer,integer) to service_role;
+create function public.resolve_company_admin_login(p_slug text, p_username text) returns table(email text, company_id uuid) language sql stable security definer set search_path = '' as $$ select au.email::text, c.id from public.companies c join public.company_admins ca on ca.company_id=c.id join public.users u on u.company_id=ca.company_id and u.id=ca.user_id join auth.users au on au.id=u.auth_user_id where c.slug=p_slug and c.status='active' and ca.username=p_username and ca.active and u.active and au.email is not null and au.email_confirmed_at is not null $$;
+revoke all on function public.resolve_company_admin_login(text,text) from public,anon,authenticated;
+grant execute on function public.resolve_company_admin_login(text,text) to service_role;

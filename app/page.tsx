@@ -83,8 +83,8 @@ function getUpcomingEventStatus(value: string): 'Today' | 'Tomorrow' | 'Upcoming
 
 export default function SafexHome() {
   const { language, setLanguage, T } = useI18n();
-  // The UI preview is disconnected; a future tenant source will provide company and sites.
-  const { ready: directoryReady, tenantId, sites, directory, companyName, directoryMode, directoryReason, employeeCount } = useSafexBootstrap();
+  // Tenant details are supplied by the public portal route when it is configured.
+  const { ready: directoryReady, tenantId, companySlug, sites, directory, companyName, directoryMode, directoryReason, employeeCount } = useSafexBootstrap();
   // Derive the portal name only from the selected tenant's supplied company name.
   const brandCompanyName = (companyName ?? '').trim();
   const company = brandingFor(brandCompanyName);
@@ -619,7 +619,7 @@ export default function SafexHome() {
         {page === 'install' && <InstallAppPage company={company} canInstall={Boolean(installPrompt)} installMessage={installMessage} onInstall={installApp} onBack={() => setPage('more')} />}
 
         {page === 'company' && <CompanyAboutPage profile={null} onBack={() => setPage('more')} />}
-        {page === 'account' && <AccountManagementPage onBack={() => setPage(accountReturnPage)} />}
+        {page === 'account' && <AccountManagementPage companySlug={companySlug} onBack={() => setPage(accountReturnPage)} />}
         {page === 'aboutApp' && <AboutAppPage company={company} onBack={() => setPage('more')} onOpenInfo={setMoreInfoKind} />}
       </main>
 
