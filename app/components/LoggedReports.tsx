@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Filter, ImagePlus, Loader2, RefreshCw, Search, X } from 'lucide-react';
 import type { ReportStatus, ReportType } from '@/lib/types';
 import './logged-reports.css';
@@ -48,70 +48,6 @@ const STATUS_CLASS: Record<ReportStatus, string> = {
   Closed: 'is-closed'
 };
 
-/**
- * The list is cached per site, so opening the screen again shows what it showed a minute ago
- * instead of asking the database for the same rows. The cache is displayed immediately and
- * revalidated quietly in the background once it is older than the TTL; only the Refresh
- * button forces a request. A report that reaches the database calls `invalidateLoggedReports`
- * so the next visit cannot show a stale list.
- */
-const CACHE_TTL_MS = 3 * 60_000;
-const CACHE_LIMIT = 100;
-const CACHE_PREFIX = 'safex-logged-reports-v1';
-
-type CacheEntry = { savedAt: number; total: number; reports: LoggedReport[] };
-const memoryCache = new Map<string, CacheEntry>();
-
-function cacheKey(siteId: string): string {
-  return `${CACHE_PREFIX}:${siteId}`;
-}
-
-function readCache(siteId: string): CacheEntry | null {
-  const cached = memoryCache.get(siteId);
-  if (cached) return cached;
-  try {
-    const raw = window.localStorage.getItem(cacheKey(siteId));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<CacheEntry> | null;
-    if (!parsed || typeof parsed.savedAt !== 'number' || !Array.isArray(parsed.reports)) return null;
-    const entry: CacheEntry = {
-      savedAt: parsed.savedAt,
-      total: Number(parsed.total ?? parsed.reports.length),
-      reports: parsed.reports as LoggedReport[]
-    };
-    memoryCache.set(siteId, entry);
-    return entry;
-  } catch {
-    return null;
-  }
-}
-
-function writeCache(siteId: string, total: number, reports: LoggedReport[]): void {
-  const entry: CacheEntry = { savedAt: Date.now(), total, reports: reports.slice(0, CACHE_LIMIT) };
-  memoryCache.set(siteId, entry);
-  try {
-    window.localStorage.setItem(cacheKey(siteId), JSON.stringify(entry));
-  } catch {
-    // Storage can be full or blocked in private mode; the in-memory copy still works.
-  }
-}
-
-/** Drop the cached list so the next open reads the database. */
-export function invalidateLoggedReports(siteId?: string | null): void {
-  if (siteId) {
-    memoryCache.delete(siteId);
-    try { window.localStorage.removeItem(cacheKey(siteId)); } catch { /* storage blocked */ }
-    return;
-  }
-  memoryCache.clear();
-  try {
-    for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
-      const key = window.localStorage.key(index);
-      if (key?.startsWith(`${CACHE_PREFIX}:`)) window.localStorage.removeItem(key);
-    }
-  } catch { /* storage blocked */ }
-}
-
 function formatDay(value: string | null | undefined): string {
   if (!value) return '—';
   const date = new Date(value);
@@ -129,9 +65,6 @@ export default function LoggedReports({ siteId, siteName }: { siteId?: string; s
   const [typeFilter, setTypeFilter] = useState<'All' | ReportType>('All');
   const [selected, setSelected] = useState<LoggedReport | null>(null);
   const [photoBroken, setPhotoBroken] = useState(false);
-  // A faster site switch must not be overwritten by the answer to the previous request.
-  const requestSeq = useRef(0);
-
   const load = useCallback(async (_offset = 0, _options: { quiet?: boolean } = {}) => {
     setFeed({ reports: [], total: 0 });
     setError('Reports are not connected in the UI preview.');

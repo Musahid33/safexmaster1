@@ -44,7 +44,6 @@ export function FeedArchivePage({ kind, siteName, items: published, onOpenItem, 
   const config = ARCHIVE_CONFIG[kind];
   const items = filterFeedItems(published, kind);
   const ArchiveIcon = FEED_ICON[kind];
-  const countText = new Intl.NumberFormat(locale).format(items.length);
 
   return <section className="page-panel feed-archive-page">
     <div className="page-heading feed-page-heading">
