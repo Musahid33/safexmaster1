@@ -59,12 +59,11 @@ export default function ProfileSearchDialog({ site, companyName, directory, dire
     setSearching(true);
     setMessage(null);
     try {
-      const match = await directory.findByEmployeeNo(site?.id ?? '', id);
-      // Go straight to the passport after an exact, site-scoped Employee ID match.
+      // Company-wide lookup: location does not matter. Any employee of this company
+      // opens by Employee ID, whichever site they belong to (empty siteId = all sites).
+      const match = await directory.findByEmployeeNo('', id);
       setResult(match);
-      setMessage(match ? null : site
-        ? { key: 'No profile was found for {id} at {site}. Check the Employee ID and try again.', params: { id, site: site.name } }
-        : { key: 'No profile was found for {id}. Check the Employee ID and try again.', params: { id } });
+      setMessage(match ? null : { key: 'No profile was found for {id}. Check the Employee ID and try again.', params: { id } });
     } catch {
       setResult(null);
       setMessage({ key: 'The employee directory is unavailable right now. Try again in a moment.' });
@@ -86,13 +85,13 @@ export default function ProfileSearchDialog({ site, companyName, directory, dire
 
   return <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="profile-search-title"><div className="modal profile-search-modal">
     <div className="modal-header"><div><span className="eyebrow">{T('EMPLOYEE DIRECTORY')}</span><h2 id="profile-search-title">{T('Search Employee Profile')}</h2></div><button className="close-button" type="button" onClick={onClose} aria-label={T('Close employee profile')}><X /></button></div>
-    <p>{site ? T('Search employees by Employee ID for the selected site: {site}.', { site: site.name }) : T('Search employees by Employee ID for the selected site.')}</p>
+    <p>{T('Search Any Employee')} — {T('any employee of this company opens by Employee ID, at any location.')}</p>
     <form className="profile-search-form" onSubmit={search}><label htmlFor="profile-search-code" className="field-label">{T('Employee ID')}</label><div className="search-box"><Search size={17} /><input id="profile-search-code" value={employeeId} onChange={(event) => { setEmployeeId(event.target.value.toUpperCase()); setMessage(null); }} placeholder={lookupUnavailable ? T('Employee master not connected') : T('Enter Employee ID')} autoComplete="off" required /></div><button type="submit" className="primary-button full-button" disabled={searching || lookupUnavailable}>{T(searching ? 'Searching…' : lookupUnavailable ? 'Search unavailable' : 'Search Employees')}</button></form>
     {message && <div className="inline-notice warning" role="status">{T(message.key, message.params)}</div>}
     {directoryMode && <div className={`directory-source ${directoryMode === 'unavailable' ? 'is-unavailable' : ''}`} role="status">
       <span className="directory-source-dot" aria-hidden="true" />
       <b>{SOURCE_LABEL[directoryMode]}</b>
-      {directoryMode !== 'unavailable' && <span>· {employeeCount.toLocaleString('en-IN')} active employees at this site</span>}
+      {directoryMode !== 'unavailable' && <span>· {employeeCount.toLocaleString('en-IN')} active employees</span>}
       {directoryMode === 'unavailable' && <span>· {directoryReason ? UNAVAILABLE_HINT[directoryReason] : 'no employee source answered'}</span>}
     </div>}
     <div className="modal-footnote">{T('The passport shows Employee ID, name, designation, department and skill grade; contact and health details are withheld.')}</div>

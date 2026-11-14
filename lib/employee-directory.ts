@@ -3,6 +3,10 @@ export type DirectoryMode = 'master';
 export type EmployeeDirectory = {
   mode: DirectoryMode; minQueryLength: number;
   search(siteId: string, query: string, signal?: AbortSignal): Promise<Employee[]>;
+  /**
+   * Exact Employee ID match. An empty siteId means a company-wide search across every
+   * location — the profile search finds any employee of the company, at any site.
+   */
   findByEmployeeNo(siteId: string, employeeNo: string, signal?: AbortSignal): Promise<Employee | null>;
 };
 // No real employee records are available in the UI-only preview.

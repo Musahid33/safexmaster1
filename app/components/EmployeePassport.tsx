@@ -54,9 +54,9 @@ const CATEGORY: Record<Category, CardConfig> = {
   safetyObservation: { label: 'Safety Observation (UC/UA)', caption: 'UC · UA · Safe observations', badge: 'Logged', icon: Eye, tone: 'blue', columns: ['Date', 'Location', 'Observation', 'Type', 'Severity', 'Status'], severity: true, tagHeader: 'Type' },
   training: { label: 'Training Records', caption: 'Sessions attended', badge: 'Completed', icon: GraduationCap, tone: 'sky', columns: ['Date', 'Training', 'Duration', 'Status'] },
   rewards: { label: 'Rewards Records', caption: 'Recognitions', badge: 'Earned', icon: Award, tone: 'violet', columns: ['Date', 'Title', 'Reason', 'Status'] },
-  feedbackSuggestion: { label: 'Feedback & Suggestion', caption: 'Verify by OTP to view', badge: 'Private', icon: MessageSquare, tone: 'teal', columns: ['Date', 'Topic', 'Details', 'Type', 'Status'], tagHeader: 'Type', locked: true },
-  grievanceSpeakUp: { label: 'Grievance & Speak Up', caption: 'Verify by OTP to view', badge: 'Private', icon: Megaphone, tone: 'amber', columns: ['Date', 'Subject', 'Details', 'Type', 'Status'], tagHeader: 'Type', locked: true },
-  consequence: { label: 'Consequence Record', caption: 'Warnings & suspensions', badge: 'Private', icon: Gavel, tone: 'red', columns: ['Date', 'Action', 'Reason', 'Status'], locked: true }
+  feedbackSuggestion: { label: 'Feedback & Suggestion', caption: 'Verify by OTP to view', badge: '', icon: MessageSquare, tone: 'teal', columns: ['Date', 'Topic', 'Details', 'Type', 'Status'], tagHeader: 'Type', locked: true },
+  grievanceSpeakUp: { label: 'Grievance & Speak Up', caption: 'Verify by OTP to view', badge: '', icon: Megaphone, tone: 'amber', columns: ['Date', 'Subject', 'Details', 'Type', 'Status'], tagHeader: 'Type', locked: true },
+  consequence: { label: 'Consequence Record', caption: 'Warnings & suspensions', badge: '', icon: Gavel, tone: 'red', columns: ['Date', 'Action', 'Reason', 'Status'], locked: true }
 };
 
 const SUMMARY_CARDS: Category[] = [
@@ -408,7 +408,7 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
                         ? <button key={category} type="button" className={`pp-kpi ${config.tone} is-locked`} onClick={() => requestPrivateSection(category)} aria-haspopup="dialog" aria-label={`${config.label} · private — verify your registered mobile by OTP to view`}>
                           <span className="pp-kpi-top">
                             <span className="pp-kpi-icon"><Icon size={15} /></span>
-                            <span className="pp-kpi-badge"><Lock size={9} aria-hidden="true" /> Private</span>
+                            <span className="pp-kpi-badge"><Lock size={10} aria-hidden="true" /></span>
                           </span>
                           <span className="pp-kpi-value">🔒</span>
                           <span className="pp-kpi-label">{config.label}</span>
@@ -417,7 +417,7 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
                         : <button key={category} type="button" className={`pp-kpi ${config.tone}`} onClick={() => openHistory(category)} aria-label={`Open ${config.label} records`}>
                           <span className="pp-kpi-top">
                             <span className="pp-kpi-icon"><Icon size={15} /></span>
-                            <span className="pp-kpi-badge">{rows ? config.badge : 'Private'}</span>
+                            <span className="pp-kpi-badge">{rows ? config.badge : null}</span>
                           </span>
                           <span className="pp-kpi-value">{rows ? String(rows.length).padStart(2, '0') : '—'}</span>
                           <span className="pp-kpi-label">{config.label}</span>
