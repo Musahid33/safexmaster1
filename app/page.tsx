@@ -1,8 +1,8 @@
 'use client';
 
 import {
-  AlertTriangle, ArrowLeft, Bell, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, Clock3,
-  Eye, FileText, FolderOpen, Globe2, Home, Lightbulb, LockKeyhole, MapPin,
+  AlertTriangle, ArrowLeft, Bell, BookOpen, CalendarCheck, CalendarDays, Check, ChevronDown, ChevronRight, Clock3,
+  Eye, FileText, FolderOpen, Globe2, GraduationCap, Home, Lightbulb, LockKeyhole, MapPin,
   Monitor, Mic, Moon, MoreHorizontal, Palette, PhoneCall, Shield, ShieldAlert,
   Smartphone, Sun, UserRound, X, Zap, MessageSquare
 } from 'lucide-react';
@@ -150,6 +150,10 @@ export default function SafexHome() {
   const sosDialHref = telHref(sosNumber);
   const isSingleSite = sites.length === 1;
   const selectedRules = currentSite?.lifeSavingRules ?? [];
+  // Hero counters come from the tenant data source for the selected site only.
+  const siteStats = currentSite?.stats ?? null;
+  const statFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
+  const formatStat = useCallback((value: number | null | undefined) => value == null ? '–' : statFormatter.format(value), [statFormatter]);
   const siteRecognitions = useMemo(() => recognitions === null ? null : forSelectedSite(recognitions, currentSite?.id), [recognitions, currentSite?.id]);
 
   useEffect(() => {
@@ -510,13 +514,30 @@ export default function SafexHome() {
         {(page === 'reports' || page === 'training' || page === 'more' || (page === 'library' && !vaultCategoryId) || page === 'appearance') && <button type="button" className="more-page-back section-page-back" onClick={() => setPage(page === 'appearance' ? 'more' : 'home')}><ArrowLeft size={16} aria-hidden="true" /> {T('Back')}</button>}
 
         {page === 'home' && <>
-          <section className="hero-strip">
-            <div className="hero-copy"><span className="eyebrow">{T('SAFETY HOME')}</span><h1>{T('Safety Portal')}</h1><p>{T('Report hazards, find safety updates and learn from reports at your selected site.')}</p></div>
-            <button className="life-saving-card" type="button" onClick={() => currentSite && openLifeRuleForSite(currentSite)} disabled={!currentSite} aria-haspopup="dialog">
-              <span className="life-saving-icon"><ShieldAlert size={22} /></span>
-              <span className="life-saving-copy"><b>{T('LIFE SAVING RULE')}</b><small>{currentSite?.name ?? T('Select site')} · {selectedRules.length ? T('{count} rules', { count: selectedRules.length }) : T('Rules not configured')}</small></span>
-              <ChevronRight size={20} />
-            </button>
+          <section className="hero-strip hero-stats-banner" aria-labelledby="hero-days-heading">
+            <span className="eyebrow hero-eyebrow">{appName}</span>
+            <div className="hero-days-row">
+              <span className="hero-days-icon" aria-hidden="true"><CalendarCheck size={42} strokeWidth={2.1} /></span>
+              <h1 className="hero-days-heading" id="hero-days-heading">
+                <b className="hero-days-number">{formatStat(siteStats?.daysWithoutInjury)}</b>
+                <span className="hero-days-label"> {T('Days Without Injury')}</span>
+              </h1>
+            </div>
+            <div className="hero-metrics" aria-label={T('Site safety counters')}>
+              <div className="hero-metric">
+                <span className="hero-metric-icon training" aria-hidden="true"><GraduationCap size={26} /></span>
+                <span className="hero-metric-copy"><span className="hero-metric-label">{T('training')}</span><b className="hero-metric-value">{formatStat(siteStats?.trainingCount)}</b></span>
+              </div>
+              <div className="hero-metric">
+                <span className="hero-metric-icon near-miss" aria-hidden="true"><AlertTriangle size={26} /></span>
+                <span className="hero-metric-copy"><span className="hero-metric-label">{T('nearMiss')}</span><b className="hero-metric-value">{formatStat(siteStats?.nearMissCount)}</b></span>
+              </div>
+              <div className="hero-metric">
+                <span className="hero-metric-icon observation" aria-hidden="true"><Eye size={26} /></span>
+                <span className="hero-metric-copy"><span className="hero-metric-label">{T('safetyObservation')}</span><b className="hero-metric-value">{formatStat(siteStats?.safetyObservationCount)}</b></span>
+              </div>
+            </div>
+            <p className="hero-tagline">{T('One platform to report, learn and improve workplace safety.')}</p>
           </section>
           <section className="section-block">
             <div className="section-heading"><div><span className="eyebrow">{T('TAKE ACTION')}</span><h2>{T('Report a safety concern')}</h2></div><span className="section-note">{T('No login needed to submit')}</span></div>
@@ -530,6 +551,11 @@ export default function SafexHome() {
               <button className="home-feature-row reports-feature" onClick={() => setPage('reports')}>
                 <span className="home-feature-icon"><FileText size={22} /></span>
                 <span className="home-feature-copy"><b>{T('viewReports')}</b><small>{T('Track Open / Closed status')}</small></span>
+                <ChevronRight size={20} />
+              </button>
+              <button className="home-feature-row life-saving-row" type="button" onClick={() => currentSite && openLifeRuleForSite(currentSite)} disabled={!currentSite} aria-haspopup="dialog">
+                <span className="home-feature-icon life-saving-row-icon"><ShieldAlert size={22} /></span>
+                <span className="home-feature-copy"><b>{T('LIFE SAVING RULE')}</b><small>{currentSite?.name ?? T('Select site')} · {selectedRules.length ? T('{count} rules', { count: selectedRules.length }) : T('Rules not configured')}</small></span>
                 <ChevronRight size={20} />
               </button>
               {APP_FEATURES.trainingManagement && <button className="home-feature-row" onClick={() => setPage('training')}>
