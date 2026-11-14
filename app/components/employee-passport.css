@@ -265,8 +265,8 @@
   margin: 0 18px; border: 1px solid #e0e7f0; border-radius: 14px; background: #fff;
   padding: 14px 18px;
 }
-.pp-qr { display: grid; justify-items: center; gap: 4px; color: #1a4066; }
-.pp-qr small { color: #93a4b7; font-size: 8px; white-space: nowrap; }
+.pp-qr { display: grid; place-items: center; padding: 10px; background: #fff; border: 1px solid #e3e9f4; border-radius: 16px; box-shadow: 0 6px 16px rgba(15, 37, 64, .10), inset 0 0 0 1px #fff; color: #1a4066; align-self: center; }
+.pp-qr svg { display: block; border-radius: 8px; }
 .pp-footer-person { display: grid; gap: 2px; padding-left: 16px; border-left: 1px solid #e9eef5; min-width: 0; }
 .pp-footer-person b { color: #0b61b6; font-size: 11px; letter-spacing: .02em; }
 .pp-footer-person strong { color: #16233b; font-size: 15px; font-weight: 800; overflow-wrap: anywhere; }
@@ -379,7 +379,6 @@
   .pp-actions { grid-template-columns: 1fr; }
   .pp-footer { grid-template-columns: 74px minmax(0, 1fr); gap: 12px; margin: 0 12px; padding: 12px; }
   .pp-footer-meta { grid-column: 1 / -1; justify-items: start; text-align: left; border-left: 0; border-top: 1px solid #e9eef5; padding: 9px 0 0; }
-  .pp-qr svg { width: 56px; height: 56px; }
   .passport-table-scroll table { min-width: 560px; }
   .passport-record-dialog > header, .passport-record-tools, .passport-record-dialog > footer { padding: 11px 12px; }
   .passport-table-scroll { padding: 0 12px; }

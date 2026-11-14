@@ -7,7 +7,7 @@
  * The private cards (Suggestions / Feedback / Grievances / Speak Up) ask for a mobile
  * number and OTP — in this preview the OTP appears in the bottom banner instead of SMS.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import ProfileSearchDialog from '@/app/components/ProfileSearchDialog';
 import type { PassportHistory } from '@/app/components/EmployeePassport';
 import type { EmployeeDirectory } from '@/lib/employee-directory';
@@ -75,6 +75,13 @@ const DEMO_DIRECTORY: EmployeeDirectory = {
 
 export default function PassportDesignPreview() {
   const [open, setOpen] = useState(true);
+  const [autoId, setAutoId] = useState<string | undefined>(undefined);
+
+  // Demo for the QR flow: ?emp=1001 reopens this preview and runs the demo lookup itself.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('emp');
+    if (id) { setAutoId(id.toUpperCase()); setOpen(true); }
+  }, []);
   const [demoOtp, setDemoOtp] = useState<string | null>(null);
 
   // DEMO ONLY: a real deployment sends the OTP over SMS via a server endpoint and
@@ -105,6 +112,8 @@ export default function PassportDesignPreview() {
             directoryMode={undefined}
             onClose={() => setOpen(false)}
             privateAccess={demoGateway}
+            autoEmployeeId={autoId}
+            profileQrPath="/passport-preview"
           />
         : <div style={{ display: 'grid', placeItems: 'center', minHeight: '100dvh' }}>
             <button

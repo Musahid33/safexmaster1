@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   ArrowDown, ArrowLeft, ArrowRight, Award, BriefcaseBusiness, Building2, CalendarDays,
   CheckCircle2, ChevronRight, ClipboardCheck, Copy, Download, Eye, FileSpreadsheet, Gavel, GraduationCap,
@@ -8,7 +9,6 @@ import {
   Search, ShieldAlert, ShieldCheck, SlidersHorizontal, Smartphone, TriangleAlert, UserRound, X
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
 import type { Employee, Site } from '@/lib/types';
 import { normalizeMobile, validOtpCode, validRegisteredMobile, type PrivateAccessGateway } from '@/lib/private-access';
 import { useI18n } from './I18nProvider';
@@ -134,7 +134,7 @@ type PrivateUnlock = {
   verified: boolean;
 };
 
-export default function EmployeePassport({ employee, site, companyName, onBack, onClose, history = {}, privateAccess = null }: {
+export default function EmployeePassport({ employee, site, companyName, onBack, onClose, history = {}, privateAccess = null, profileQrPath = '/' }: {
   employee: Employee;
   site: Site | null;
   companyName?: string | null;
@@ -146,6 +146,12 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
    * cards fail closed: the unlock dialog opens but cannot send an OTP.
    */
   privateAccess?: PrivateAccessGateway | null;
+  /**
+   * Path the footer QR points to (on this app's origin) followed by ?emp=<Employee ID>.
+   * Default '/' keeps the URL identical to the home page; the design-preview route passes
+   * '/passport-preview' so its demo QR reopens the demo search rather than the real app.
+   */
+  profileQrPath?: string;
 }) {
   const { T } = useI18n();
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -161,7 +167,12 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
   const [qrUrl, setQrUrl] = useState('');
   const [unlock, setUnlock] = useState<PrivateUnlock | null>(null);
 
-  useEffect(() => { setQrUrl(window.location.origin); }, []);
+  // The QR holds a URL on the home page (no extra route like /safety-passport): a scan
+  // lands on {origin}/?emp=… and the app auto-opens THIS employee's profile, no typing.
+  useEffect(() => {
+    setQrUrl(`${window.location.origin}${profileQrPath}?emp=${encodeURIComponent(employee.empNo)}`);
+  }, [employee.empNo, profileQrPath]);
+
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -458,7 +469,7 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
           </div>
 
           <footer className="pp-footer">
-            <div className="pp-qr">{qrUrl ? <QRCodeSVG value={qrUrl} size={64} marginSize={0} title="Scan to open Safex" /> : <ShieldCheck size={44} />}<small>Scan to open Safex</small></div>
+            <div className="pp-qr">{qrUrl ? <QRCodeSVG value={qrUrl} size={72} marginSize={0} title="Scan to open this profile" aria-label="QR code — scanning opens this employee's profile" /> : <ShieldCheck size={52} />}</div>
             <div className="pp-footer-person">
               <b>{employee.empNo}</b>
               <strong>{employee.name}</strong>
