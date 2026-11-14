@@ -265,6 +265,8 @@
   margin: 0 18px; border: 1px solid #e0e7f0; border-radius: 14px; background: #fff;
   padding: 14px 18px;
 }
+.pp-qr { display: grid; justify-items: center; gap: 4px; color: #1a4066; }
+.pp-qr small { color: #93a4b7; font-size: 8px; white-space: nowrap; }
 .pp-footer-person { display: grid; gap: 2px; padding-left: 16px; border-left: 1px solid #e9eef5; min-width: 0; }
 .pp-footer-person b { color: #0b61b6; font-size: 11px; letter-spacing: .02em; }
 .pp-footer-person strong { color: #16233b; font-size: 15px; font-weight: 800; overflow-wrap: anywhere; }

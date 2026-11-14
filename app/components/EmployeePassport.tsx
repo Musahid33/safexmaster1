@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   ArrowDown, ArrowLeft, ArrowRight, Award, BriefcaseBusiness, Building2, CalendarDays,
   CheckCircle2, ChevronRight, ClipboardCheck, Copy, Download, Eye, FileSpreadsheet, Gavel, GraduationCap,
@@ -182,6 +183,18 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
     : null;
   const isActive = employee.active !== false;
   const employer = companyName?.trim() || 'Company not on record';
+  // The QR carries the profile itself as plain text, NOT a URL — so a scanner shows these
+  // details directly and there is no link to read, copy or share. Public identity only;
+  // no contact, health or private records are ever encoded.
+  const qrPayload = [
+    'SAFEX — Employee Safety Passport',
+    `Emp ID: ${employee.empNo}`,
+    `Name: ${employee.name}`,
+    `Designation: ${employee.designation || 'Not on record'}`,
+    `Site: ${site?.name ?? 'Not selected'}`,
+    `Company: ${employer}`,
+    `Issued: ${formatPassportDate(generatedAt)}`
+  ].join('\n');
   const siteLabel = site ? `${site.name}${site.region ? ` · ${site.region}` : ''}` : 'Site not selected';
 
   const detailRows: DetailRow[] = ([
@@ -455,6 +468,7 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
           </div>
 
           <footer className="pp-footer">
+            <div className="pp-qr"><QRCodeSVG value={qrPayload} size={64} marginSize={0} title="Scan to view this profile" aria-label="QR code containing this profile's public details as plain text" /><small>Scan to view profile</small></div>
             <div className="pp-footer-person">
               <b>{employee.empNo}</b>
               <strong>{employee.name}</strong>
