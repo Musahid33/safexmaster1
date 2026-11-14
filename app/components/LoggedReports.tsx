@@ -17,7 +17,7 @@ import './logged-reports.css';
  * because a site feed with no name on it is not actionable.
  */
 
-type LoggedReport = {
+export type LoggedReport = {
   reference: string;
   type: ReportType;
   category: string | null;
@@ -33,6 +33,9 @@ type LoggedReport = {
   reporterName: string | null;
   hasPhoto: boolean;
   photoUrl: string | null;
+  /** Which site logged it — the server fills these; used by the location dropdown. */
+  siteId?: string;
+  siteName?: string;
 };
 
 type Feed = { reports: LoggedReport[]; total: number };
@@ -55,7 +58,7 @@ function formatDay(value: string | null | undefined): string {
   return new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
 }
 
-export default function LoggedReports({ sites = [] }: { sites?: Site[] }) {
+export default function LoggedReports({ sites = [], demoReports }: { sites?: Site[]; demoReports?: readonly LoggedReport[] }) {
   // '' means All locations: the feed opens company-wide by default; the little dropdown
   // beside the heading narrows it to one site when you want a single location.
   const [siteChoice, setSiteChoice] = useState('');
@@ -69,15 +72,19 @@ export default function LoggedReports({ sites = [] }: { sites?: Site[] }) {
   const [selected, setSelected] = useState<LoggedReport | null>(null);
   const [photoBroken, setPhotoBroken] = useState(false);
   const load = useCallback(async (_offset = 0, _options: { quiet?: boolean } = {}) => {
+    if (demoReports) {
+      const list = demoReports.filter((report) => !siteChoice || report.siteId === siteChoice);
+      setFeed({ reports: list, total: list.length });
+      setError('');
+      return;
+    }
     setFeed({ reports: [], total: 0 });
     setError('Reports are not connected in the UI preview.');
-  }, []);
+  }, [demoReports, siteChoice]);
 
   useEffect(() => {
-    setFeed({ reports: [], total: 0 });
-    setError('Reports are not connected in the UI preview.');
-    setLoading(false);
-  }, [siteChoice]);
+    void load().finally(() => setLoading(false));
+  }, [load]);
 
   // A cached photo link is signed for ten minutes; if it has expired, say so instead of
   // showing a broken image.
@@ -215,6 +222,7 @@ export default function LoggedReports({ sites = [] }: { sites?: Site[] }) {
           </span>
           <span className="mlr-report-meta">
             {report.hasPhoto && <ImagePlus size={13} className="mlr-photo-flag" aria-label="Photo attached" />}
+            {!siteChoice && report.siteName && <span className="mlr-report-site">{report.siteName}</span>}
             <span>{report.area || 'Area not stated'}</span>
             <span>{report.reporterName || 'Reporter not recorded'}</span>
             <span>{formatDay(report.filedAt)}</span>

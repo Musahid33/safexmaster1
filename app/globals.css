@@ -2481,3 +2481,9 @@ textarea.form-control { min-height: 128px; }
 @media (max-width: 520px) { .more-brand-footer { font-size: 11px; } }
 
 .more-brand-footer { filter: blur(0.6px); }
+
+.demo-ribbon {
+  position: sticky; top: 0; z-index: 90;
+  background: repeating-linear-gradient(45deg, #7c2d12, #7c2d12 12px, #9a3412 12px, #9a3412 24px);
+  color: #fff7ed; text-align: center; padding: 6px 12px; font-size: 12px; font-weight: 700; letter-spacing: .04em;
+}
