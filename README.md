@@ -15,6 +15,10 @@ Open http://localhost:3000. The preview has no connected company or sites, emplo
 
 The Company Profile screen is a UI-only placeholder for About Us, Services, Address, Mobile and Email. It does not load or save data. Its reusable profile component accepts company details as props for a future data source. No database or hosting service is required to run the UI. The Privacy Policy is supplied as UI text; verify its accuracy and review it before production use.
 
+## Home hero safety stats
+
+The home hero banner shows four counters for the **selected site only**: Days Without Injury, Near Miss count, Safety Observation count and published Training count. The public portal RPC (`get_public_portal`) aggregates them per location: the days counter is derived from the location's `last_recordable_injury_at` (falling back to the location's creation date), and the other counts come from that location's reports and published training rows. Until a tenant data source supplies stats, every counter shows zero rather than invented numbers. The compact banner keeps the three counters on a single line on desktop and mobile. The Life Saving Rule entry sits below the View Reports row in Safety Resources and still opens the selected site's rule list.
+
 ## Emergency contact and language
 
 The SOS dialog uses the selected site's `sosNumber` field and never falls back to a hardcoded phone number. The UI-only preview has no number, so it displays an unavailable message instead of a call link. A future tenant data source must supply the correct site-specific number. Language choices remain defined in the frontend.

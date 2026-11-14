@@ -15,6 +15,15 @@ export type DirectoryUnavailableReason =
 
 export type LifeSavingRule = { title: string; text: string };
 
+/** Aggregated safety counters for one site, supplied by the tenant data source. */
+export type SiteStats = {
+  /** Whole days since the site's last recordable injury; null when the source does not track it. */
+  daysWithoutInjury: number | null;
+  nearMissCount: number;
+  safetyObservationCount: number;
+  trainingCount: number;
+};
+
 export type Site = {
   id: string;
   name: string;
@@ -22,6 +31,8 @@ export type Site = {
   sosNumber: string | null;
   /** Site-specific published rules, supplied by the tenant when configured. */
   lifeSavingRules?: readonly LifeSavingRule[] | null;
+  /** Per-site safety counters; null or absent until the data source supplies them. */
+  stats?: SiteStats | null;
 };
 export type Employee = {
   id: string;

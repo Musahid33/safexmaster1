@@ -95,7 +95,7 @@ test('public portal exposes only enabled companies and active locations', async 
     await db.query("insert into public.locations(id,company_id,name,active,emergency_number) values ($1,$2,'Active site',true,'123'),($3,$2,'Inactive site',false,'456')", [ids.active_site,ids.a,ids.inactive_site]);
     await db.exec('set role anon');
     const { rows: [row] } = await db.query("select public.get_public_portal('company-a') as portal");
-    assert.deepEqual(row.portal, { companyId: ids.a, companySlug: 'company-a', companyName: 'Company A', sites: [{ id: ids.active_site, name: 'Active site', region: '', sosNumber: '123' }] });
+    assert.deepEqual(row.portal, { companyId: ids.a, companySlug: 'company-a', companyName: 'Company A', sites: [{ id: ids.active_site, name: 'Active site', region: '', sosNumber: '123', stats: { daysWithoutInjury: 0, nearMissCount: 0, safetyObservationCount: 0, trainingCount: 0 } }] });
     assert.equal((await db.query("select public.get_public_portal('company-b') as portal")).rows[0].portal, null);
     assert.equal((await db.query("select public.get_public_portal('unknown') as portal")).rows[0].portal, null);
     await assert.rejects(db.query('select * from public.company_settings'), /permission denied/i);
@@ -104,6 +104,25 @@ test('public portal exposes only enabled companies and active locations', async 
     await db.query("update public.companies set status='suspended' where id=$1", [ids.a]);
     await db.exec('set role anon');
     assert.equal((await db.query("select public.get_public_portal('company-a') as portal")).rows[0].portal, null);
+    await db.exec('reset role');
+  } finally { await db.close(); }
+});
+
+test('public portal hero stats are aggregated per selected site only', async () => {
+  const db = await freshDatabase();
+  try {
+    const { rows: [ids] } = await db.query('select gen_random_uuid() as company, gen_random_uuid() as site_a, gen_random_uuid() as site_b');
+    await db.query("insert into public.companies(id,name,slug,status) values ($1,'Company A','company-a','active')", [ids.company]);
+    await db.query("insert into public.company_settings(company_id,public_portal_enabled) values ($1,true)", [ids.company]);
+    await db.query("insert into public.locations(id,company_id,name,active,last_recordable_injury_at) values ($1,$2,'Site A',true, now() - interval '358 days'),($3,$2,'Site B',true,null)", [ids.site_a, ids.company, ids.site_b]);
+    // Other locations' reports and drafts must never leak into a site's counters.
+    await db.query("insert into public.reports(company_id,location_id,type,description) values ($1,$2,'Near Miss','nm1'),($1,$2,'Near Miss','nm2'),($1,$2,'Safety Observation','so1'),($1,$2,'Hazard','hz1'),($1,$3,'Near Miss','nm-b1'),($1,$3,'Near Miss','nm-b2'),($1,$3,'Near Miss','nm-b3'),($1,$3,'Near Miss','nm-b4'),($1,$3,'Near Miss','nm-b5')", [ids.company, ids.site_a, ids.site_b]);
+    await db.query("insert into public.training(company_id,location_id,title,status) values ($1,$2,'Toolbox talk','published'),($1,$2,'Draft module','draft'),($1,$3,'Induction','published'),($1,$3,'PPE','published'),($1,$3,'Heights','published')", [ids.company, ids.site_a, ids.site_b]);
+    await db.exec('set role anon');
+    const { rows: [row] } = await db.query("select public.get_public_portal('company-a') as portal");
+    const byId = Object.fromEntries(row.portal.sites.map((site) => [site.id, site.stats]));
+    assert.deepEqual(byId[ids.site_a], { daysWithoutInjury: 358, nearMissCount: 2, safetyObservationCount: 1, trainingCount: 1 });
+    assert.deepEqual(byId[ids.site_b], { daysWithoutInjury: 0, nearMissCount: 5, safetyObservationCount: 0, trainingCount: 3 });
     await db.exec('reset role');
   } finally { await db.close(); }
 });
