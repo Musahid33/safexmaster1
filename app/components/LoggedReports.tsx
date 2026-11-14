@@ -51,6 +51,12 @@ const STATUS_CLASS: Record<ReportStatus, string> = {
   Closed: 'is-closed'
 };
 
+/** The reference is an Incident ID for incident-type reports, an Observation ID otherwise. */
+function referenceLabel(type: ReportType): string {
+  return type === 'Safety Observation' || type === 'Unsafe Condition' || type === 'Unsafe Act'
+    ? 'Observation ID' : 'Incident ID';
+}
+
 function formatDay(value: string | null | undefined): string {
   if (!value) return '—';
   const date = new Date(value);
@@ -263,7 +269,9 @@ export default function LoggedReports({ sites = [], demoReports }: { sites?: Sit
         <p className="mlr-modal-summary">{selected.type}{selected.category ? ` · ${selected.category}` : ''} — {selected.summary}</p>
 
         <dl className="mlr-modal-grid">
+          <div><dt>{referenceLabel(selected.type)}</dt><dd><b>{selected.reference}</b></dd></div>
           <div><dt>Type</dt><dd>{selected.type}</dd></div>
+          {selected.siteName && <div><dt>Site</dt><dd>{selected.siteName}</dd></div>}
           <div><dt>Category</dt><dd>{selected.category || 'Not stated'}</dd></div>
           <div><dt>Area / location</dt><dd>{selected.area || 'Not stated'}</dd></div>
           <div><dt>Department</dt><dd>{selected.department || 'Not stated'}</dd></div>

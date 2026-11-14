@@ -4,8 +4,8 @@
  * development mode (the flag is ignored in production builds). Contains fictional
  * sites, stats, rules, feed items, recognitions and reports so site filtering,
  * the View Reports location dropdown and the hero banner can be reviewed before
- * the real database connects. REMOVE this file and the demoMode wiring in
- * app/page.tsx before production. Never ship this data to real users.
+ * the real database connects. REMOVE this file, the public/demo/ images and the
+ * demoMode wiring in app/page.tsx before production. Never ship this data to real users.
  * ===============================================================================
  */
 import type { HomeFeedItem } from './home-content';
@@ -90,14 +90,14 @@ export const DEMO_REPORTS: LoggedReport[] = [
     category: 'Slip & Fall', area: 'Rolling Mill', department: 'Maintenance', severity: 'High',
     occurredAt: '2026-11-13T14:20:00', filedAt: '2026-11-13T15:02:00', status: 'Open',
     summary: 'Oil spillage ke karan worker slip hone se bacha', description: 'Bay 3 ke paas hydraulic oil spill tha; time par clean kiya gaya.',
-    immediateAction: 'Area barricaded and cleaned', reporterName: 'Ramesh Kumar', hasPhoto: false, photoUrl: null
+    immediateAction: 'Area barricaded and cleaned', reporterName: 'Ramesh Kumar', hasPhoto: true, photoUrl: '/demo/photo-oil-spill.jpg'
   },
   {
     reference: 'HZ-2602', type: 'Hazard', siteId: 'demo-jsr', siteName: 'Jamshedpur Works',
     category: 'Electrical', area: 'Bay 4', department: 'Electrical', severity: 'Critical',
     occurredAt: '2026-11-11T09:40:00', filedAt: '2026-11-11T09:52:00', status: 'In Progress',
     summary: 'Exposed live wire near walkway', description: 'Temporary panel ka cover khula tha; livel wire exposed.',
-    immediateAction: 'Power isolated, cover fixed', reporterName: 'Sunita Devi', hasPhoto: false, photoUrl: null
+    immediateAction: 'Power isolated, cover fixed', reporterName: 'Sunita Devi', hasPhoto: true, photoUrl: '/demo/photo-wire.jpg'
   },
   {
     reference: 'SO-2603', type: 'Safety Observation', siteId: 'demo-jsr', siteName: 'Jamshedpur Works',
