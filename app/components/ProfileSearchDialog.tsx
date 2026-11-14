@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Search, X } from 'lucide-react';
 import type { EmployeeDirectory } from '@/lib/employee-directory';
 import type { PrivateAccessGateway } from '@/lib/private-access';
@@ -20,6 +20,13 @@ type Props = {
   onClose: () => void;
   /** Server-backed OTP service for private passport sections; absent means fail closed. */
   privateAccess?: PrivateAccessGateway | null;
+  /**
+   * Employee ID arriving from a QR scan URL (?emp=…). When present the dialog runs the
+   * lookup by itself, so the profile opens without anyone typing the Employee ID.
+   */
+  autoEmployeeId?: string;
+  /** Passed through to the passport so the footer QR points back to this entry path. */
+  profileQrPath?: string;
 };
 
 const SOURCE_LABEL: Record<'supabase' | 'sheet' | 'unavailable', string> = {
@@ -42,7 +49,7 @@ const UNAVAILABLE_HINT: Record<DirectoryUnavailableReason, string> = {
 };
 type UiMessage = { key: string; params?: Record<string, string | number> };
 
-export default function ProfileSearchDialog({ site, companyName, directory, directoryMode, directoryReason, employeeCount = 0, onClose, privateAccess = null }: Props) {
+export default function ProfileSearchDialog({ site, companyName, directory, directoryMode, directoryReason, employeeCount = 0, onClose, privateAccess = null, autoEmployeeId, profileQrPath }: Props) {
   const { T } = useI18n();
   const [employeeId, setEmployeeId] = useState('');
   const [result, setResult] = useState<Employee | null>(null);
@@ -52,9 +59,8 @@ export default function ProfileSearchDialog({ site, companyName, directory, dire
   // as a wrong Employee ID. Block the lookup and say what is actually wrong instead.
   const lookupUnavailable = directoryMode === 'unavailable';
 
-  async function search(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const id = employeeId.trim().toUpperCase();
+  async function runSearch(rawId: string) {
+    const id = rawId.trim().toUpperCase();
     if (!id || searching) return;
     setSearching(true);
     setMessage(null);
@@ -72,6 +78,23 @@ export default function ProfileSearchDialog({ site, companyName, directory, dire
     }
   }
 
+  function search(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void runSearch(employeeId);
+  }
+
+  // Deep link from a passport QR scan (?emp=…): run the lookup ourselves so the profile
+  // opens immediately — the scanner never has to type the Employee ID.
+  const autoRanRef = useRef(false);
+  useEffect(() => {
+    if (autoRanRef.current || !autoEmployeeId || lookupUnavailable) return;
+    autoRanRef.current = true;
+    setEmployeeId(autoEmployeeId.trim().toUpperCase());
+    void runSearch(autoEmployeeId);
+    // runSearch identity changes with `searching`, but this effect must run exactly once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoEmployeeId, lookupUnavailable]);
+
   if (result) {
     return <EmployeePassport
       employee={result}
@@ -80,6 +103,7 @@ export default function ProfileSearchDialog({ site, companyName, directory, dire
       onBack={() => { setResult(null); setEmployeeId(''); setMessage(null); }}
       onClose={onClose}
       privateAccess={privateAccess}
+      profileQrPath={profileQrPath}
     />;
   }
 

@@ -120,6 +120,7 @@ export default function SafexHome() {
   const [expandedSafetyAlertId, setExpandedSafetyAlertId] = useState<string | null>(null);
   const [sosOpen, setSosOpen] = useState(false);
   const [profileSearchOpen, setProfileSearchOpen] = useState(false);
+  const [qrEmployeeId, setQrEmployeeId] = useState<string | null>(null);
   const [moreInfoKind, setMoreInfoKind] = useState<MoreInfoKind | null>(null);
   const [notificationPermission, setNotificationPermission] = useState('not requested');
   const [pushPrefs, setPushPrefs] = useState({ safety: true, notices: true, training: true, ownReports: true, allVendorSites: false, hideLockScreen: true });
@@ -229,6 +230,16 @@ export default function SafexHome() {
   }, [tenantId]);
 
   useEffect(() => { document.title = appName; }, [appName]);
+
+  // A passport QR scan lands on the home URL as ?emp=<Employee ID>: open the profile
+  // search and let the dialog run the lookup, so the profile opens without any typing.
+  useEffect(() => {
+    if (!directoryReady || qrEmployeeId) return;
+    const id = new URLSearchParams(window.location.search).get('emp')?.toUpperCase();
+    if (!id) return;
+    setQrEmployeeId(id);
+    setProfileSearchOpen(true);
+  }, [directoryReady, qrEmployeeId]);
 
   useEffect(() => {
     document.documentElement.dataset.mode = themeMode;
@@ -770,7 +781,7 @@ export default function SafexHome() {
       </div>}
 
       {reportType && currentSite && <ReportWorkflow key={`${reportType}-${currentSite.id}`} type={reportType} site={currentSite} directory={directory} language={language} onLanguageChange={setLanguage} voiceEnabled={APP_FEATURES.voiceReporting} onBack={backFromReport} onClose={() => setReportType(null)} onSubmit={submitReport} />}
-      {profileSearchOpen && <ProfileSearchDialog site={currentSite} companyName={companyName} directory={directory} directoryMode={directoryMode} directoryReason={directoryReason} employeeCount={employeeCount} onClose={() => setProfileSearchOpen(false)} />}
+      {profileSearchOpen && <ProfileSearchDialog site={currentSite} companyName={companyName} directory={directory} directoryMode={directoryMode} directoryReason={directoryReason} employeeCount={employeeCount} autoEmployeeId={qrEmployeeId ?? undefined} onClose={() => { setProfileSearchOpen(false); setQrEmployeeId(null); }} />}
       {moreInfoKind && <MoreInfoDialog kind={moreInfoKind} company={company} onClose={() => setMoreInfoKind(null)} onLogin={() => { setMoreInfoKind(null); setToast({ key: 'Login is unavailable in the UI preview.' }); }} />}
 
 

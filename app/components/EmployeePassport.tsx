@@ -134,7 +134,7 @@ type PrivateUnlock = {
   verified: boolean;
 };
 
-export default function EmployeePassport({ employee, site, companyName, onBack, onClose, history = {}, privateAccess = null }: {
+export default function EmployeePassport({ employee, site, companyName, onBack, onClose, history = {}, privateAccess = null, profileQrPath = '/' }: {
   employee: Employee;
   site: Site | null;
   companyName?: string | null;
@@ -146,6 +146,12 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
    * cards fail closed: the unlock dialog opens but cannot send an OTP.
    */
   privateAccess?: PrivateAccessGateway | null;
+  /**
+   * Path the footer QR points to (on this app's origin) followed by ?emp=<Employee ID>.
+   * Default '/' keeps the URL identical to the home page; the design-preview route passes
+   * '/passport-preview' so its demo QR reopens the demo search rather than the real app.
+   */
+  profileQrPath?: string;
 }) {
   const { T } = useI18n();
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -158,7 +164,14 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
   const [downloadError, setDownloadError] = useState('');
   const [toast, setToast] = useState('');
   const [generatedAt] = useState(() => new Date());
+  const [qrUrl, setQrUrl] = useState('');
   const [unlock, setUnlock] = useState<PrivateUnlock | null>(null);
+
+  // The QR holds a URL on the home page (no extra route like /safety-passport): a scan
+  // lands on {origin}/?emp=… and the app auto-opens THIS employee's profile, no typing.
+  useEffect(() => {
+    setQrUrl(`${window.location.origin}${profileQrPath}?emp=${encodeURIComponent(employee.empNo)}`);
+  }, [employee.empNo, profileQrPath]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -183,18 +196,6 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
     : null;
   const isActive = employee.active !== false;
   const employer = companyName?.trim() || 'Company not on record';
-  // The QR carries the profile itself as plain text, NOT a URL — so a scanner shows these
-  // details directly and there is no link to read, copy or share. Public identity only;
-  // no contact, health or private records are ever encoded.
-  const qrPayload = [
-    'SAFEX — Employee Safety Passport',
-    `Emp ID: ${employee.empNo}`,
-    `Name: ${employee.name}`,
-    `Designation: ${employee.designation || 'Not on record'}`,
-    `Site: ${site?.name ?? 'Not selected'}`,
-    `Company: ${employer}`,
-    `Issued: ${formatPassportDate(generatedAt)}`
-  ].join('\n');
   const siteLabel = site ? `${site.name}${site.region ? ` · ${site.region}` : ''}` : 'Site not selected';
 
   const detailRows: DetailRow[] = ([
@@ -468,7 +469,7 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
           </div>
 
           <footer className="pp-footer">
-            <div className="pp-qr"><QRCodeSVG value={qrPayload} size={64} marginSize={0} title="Scan to view this profile" aria-label="QR code containing this profile's public details as plain text" /><small>Scan to view profile</small></div>
+            <div className="pp-qr">{qrUrl ? <QRCodeSVG value={qrUrl} size={72} marginSize={0} title="Scan to open this profile" aria-label="QR code — scanning opens this employee's profile" /> : <ShieldCheck size={52} />}</div>
             <div className="pp-footer-person">
               <b>{employee.empNo}</b>
               <strong>{employee.name}</strong>
