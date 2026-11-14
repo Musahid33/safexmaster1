@@ -3,21 +3,27 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDown, ArrowLeft, ArrowRight, Award, BriefcaseBusiness, Building2, CalendarDays,
-  CheckCircle2, ChevronRight, ClipboardCheck, Copy, Download, FileSpreadsheet, GraduationCap,
-  HardHat, HeartPulse, IdCard, Lightbulb, Lock, Mail, MapPin, MessageSquare, Phone, Printer,
-  Search, ShieldAlert, ShieldCheck, SlidersHorizontal, TriangleAlert, UserRound, UserX, X
+  CheckCircle2, ChevronRight, ClipboardCheck, Copy, Download, Eye, FileSpreadsheet, Gavel, GraduationCap,
+  HeartPulse, IdCard, KeyRound, Lightbulb, Lock, Mail, MapPin, Megaphone, MessageSquare, Phone, Printer,
+  Search, ShieldAlert, ShieldCheck, SlidersHorizontal, Smartphone, TriangleAlert, UserRound, X
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { Employee, Site } from '@/lib/types';
+import { normalizeMobile, validOtpCode, validRegisteredMobile, type PrivateAccessGateway } from '@/lib/private-access';
 import { useI18n } from './I18nProvider';
 import './employee-passport.css';
 import { initials } from '@/lib/initials';
 
 type Category =
-  | 'nearMiss' | 'hazard' | 'unsafeAct' | 'unsafeCondition'
-  | 'training' | 'rewards' | 'suggestions' | 'feedback' | 'ppe';
-type HistoryRow = { date: string; title: string; detail: string; status: string; severity?: string };
+  | 'nearMiss' | 'hazard' | 'safetyObservation'
+  | 'training' | 'rewards'
+  | 'feedbackSuggestion' | 'grievanceSpeakUp' | 'consequence';
+/**
+ * `tag` carries the sub-type for merged cards (UC / UA / Safe Observation inside Safety
+ * Observation; Feedback vs Suggestion; Grievance vs Speak Up) so one table holds them all.
+ */
+type HistoryRow = { date: string; title: string; detail: string; status: string; severity?: string; tag?: string };
 export type PassportHistory = Partial<Record<Category, HistoryRow[]>>;
 
 type CardConfig = {
@@ -28,27 +34,33 @@ type CardConfig = {
   tone: string;
   columns: string[];
   severity?: boolean;
+  /** Header of the sub-type column slot between the detail and severity columns. */
+  tagHeader?: string;
+  /**
+   * Locked sections never show counts in public search. They open only after the
+   * employee verifies the registered mobile number with a server-issued OTP.
+   */
+  locked?: boolean;
 };
 
 /**
- * The eight record cards from the approved Safety Passport design. Keys map onto the
- * report types the database actually stores, so the same card can later be wired to a
- * count without changing the layout.
+ * Safety Record Summary cards. UC/UA/Safe Observation records live together under one
+ * Safety Observation card; Feedback + Suggestion and Grievance + Speak Up are merged
+ * private pairs; the Consequence Record (warnings, suspensions) is private too.
  */
 const CATEGORY: Record<Category, CardConfig> = {
   nearMiss: { label: 'Near Miss', caption: 'Incidents reported', badge: 'Logged', icon: ShieldCheck, tone: 'emerald', columns: ['Date', 'Location', 'Description', 'Severity', 'Status'], severity: true },
   hazard: { label: 'Hazard Reports', caption: 'Identified risks', badge: 'Reported', icon: ShieldAlert, tone: 'rose', columns: ['Date', 'Location', 'Hazard', 'Severity', 'Status'], severity: true },
-  unsafeAct: { label: 'Unsafe Acts', caption: 'Unsafe practices', badge: 'Reported', icon: UserX, tone: 'orange', columns: ['Date', 'Location', 'Unsafe act', 'Severity', 'Status'], severity: true },
-  unsafeCondition: { label: 'Unsafe Conditions', caption: 'Physical hazards', badge: 'Reported', icon: TriangleAlert, tone: 'red', columns: ['Date', 'Location', 'Condition', 'Severity', 'Status'], severity: true },
+  safetyObservation: { label: 'Safety Observation (UC/UA)', caption: 'UC · UA · Safe observations', badge: 'Logged', icon: Eye, tone: 'blue', columns: ['Date', 'Location', 'Observation', 'Type', 'Severity', 'Status'], severity: true, tagHeader: 'Type' },
   training: { label: 'Training Records', caption: 'Sessions attended', badge: 'Completed', icon: GraduationCap, tone: 'sky', columns: ['Date', 'Training', 'Duration', 'Status'] },
   rewards: { label: 'Rewards Records', caption: 'Recognitions', badge: 'Earned', icon: Award, tone: 'violet', columns: ['Date', 'Title', 'Reason', 'Status'] },
-  suggestions: { label: 'Suggestions', caption: 'Safety ideas', badge: 'Submitted', icon: Lightbulb, tone: 'indigo', columns: ['Date', 'Suggestion', 'Details', 'Status'] },
-  feedback: { label: 'Feedback', caption: 'Audit responses', badge: 'Shared', icon: MessageSquare, tone: 'teal', columns: ['Date', 'Topic', 'Feedback', 'Status'] },
-  ppe: { label: 'PPE Management', caption: 'Issue & renewal', badge: 'Issued', icon: HardHat, tone: 'amber', columns: ['Issued', 'PPE name', 'Next due', 'Status'] }
+  feedbackSuggestion: { label: 'Feedback & Suggestion', caption: 'Verify by OTP to view', badge: 'Private', icon: MessageSquare, tone: 'teal', columns: ['Date', 'Topic', 'Details', 'Type', 'Status'], tagHeader: 'Type', locked: true },
+  grievanceSpeakUp: { label: 'Grievance & Speak Up', caption: 'Verify by OTP to view', badge: 'Private', icon: Megaphone, tone: 'amber', columns: ['Date', 'Subject', 'Details', 'Type', 'Status'], tagHeader: 'Type', locked: true },
+  consequence: { label: 'Consequence Record', caption: 'Warnings & suspensions', badge: 'Private', icon: Gavel, tone: 'red', columns: ['Date', 'Action', 'Reason', 'Status'], locked: true }
 };
 
 const SUMMARY_CARDS: Category[] = [
-  'nearMiss', 'hazard', 'unsafeAct', 'unsafeCondition', 'training', 'rewards', 'suggestions', 'feedback'
+  'nearMiss', 'hazard', 'safetyObservation', 'training', 'rewards', 'feedbackSuggestion', 'grievanceSpeakUp', 'consequence'
 ];
 
 function exportCsv(rows: HistoryRow[], category: Category, employeeNo: string) {
@@ -58,7 +70,7 @@ function exportCsv(rows: HistoryRow[], category: Category, employeeNo: string) {
   const safe = (value: string) => escape(/^[\s]*[=+@\-\t\r]/.test(value) ? `'${value}` : value);
   const csv = '\uFEFF' + [
     headers.join(','),
-    ...rows.map((row) => [row.date, row.title, row.detail, ...(CATEGORY[category].severity ? [row.severity ?? ''] : []), row.status].map(safe).join(','))
+    ...rows.map((row) => [row.date, row.title, row.detail, ...(CATEGORY[category].tagHeader ? [row.tag ?? ''] : []), ...(CATEGORY[category].severity ? [row.severity ?? ''] : []), row.status].map(safe).join(','))
   ].join('\r\n');
   const href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a');
@@ -110,13 +122,30 @@ type DetailRow = {
  * (photo, email, joining date, pass validity). No sample employee, photo or record count
  * is ever invented, and no fabricated history is drawn when a source is empty.
  */
-export default function EmployeePassport({ employee, site, companyName, onBack, onClose, history = {} }: {
+/** OTP entry steps for a locked (private) section; reset whenever the dialog closes. */
+type PrivateUnlock = {
+  category: Category;
+  mobile: string;
+  otp: string;
+  stage: 'mobileEntry' | 'otpEntry';
+  busy: boolean;
+  error: string | null;
+  /** Set only after the gateway accepted the OTP — gates opening the records table. */
+  verified: boolean;
+};
+
+export default function EmployeePassport({ employee, site, companyName, onBack, onClose, history = {}, privateAccess = null }: {
   employee: Employee;
   site: Site | null;
   companyName?: string | null;
   onBack: () => void;
   onClose: () => void;
   history?: PassportHistory;
+  /**
+   * Server-backed OTP service for private sections. Absent (null) means the private
+   * cards fail closed: the unlock dialog opens but cannot send an OTP.
+   */
+  privateAccess?: PrivateAccessGateway | null;
 }) {
   const { T } = useI18n();
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -130,17 +159,19 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
   const [toast, setToast] = useState('');
   const [generatedAt] = useState(() => new Date());
   const [qrUrl, setQrUrl] = useState('');
+  const [unlock, setUnlock] = useState<PrivateUnlock | null>(null);
 
   useEffect(() => { setQrUrl(window.location.origin); }, []);
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
-      if (activeCategory) setActiveCategory(null);
+      if (unlock) setUnlock(null);
+      else if (activeCategory) setActiveCategory(null);
       else onClose();
     };
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [activeCategory, onClose]);
+  }, [unlock, activeCategory, onClose]);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(''), 2600);
@@ -180,7 +211,7 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
   const statuses = [...new Set(allRows.map((row) => row.status))];
   const filtered = allRows
     .filter((row) => (filter === 'All statuses' || row.status === filter)
-      && `${row.date} ${row.title} ${row.detail} ${row.status}`.toLowerCase().includes(search.toLowerCase()))
+      && `${row.date} ${row.title} ${row.detail} ${row.tag ?? ''} ${row.status}`.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
       const compare = (Date.parse(a.date) || 0) - (Date.parse(b.date) || 0);
       return sort === 'Oldest first' ? compare : -compare;
@@ -190,11 +221,62 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
   const active = activeCategory ? CATEGORY[activeCategory] : null;
 
   const trainingRows = useMemo(() => (history.training ?? []).slice(0, 3), [history.training]);
-  const ppeRows = useMemo(() => (history.ppe ?? []).slice(0, 2), [history.ppe]);
 
   function openHistory(category: Category) {
     setSearch(''); setFilter('All statuses'); setSort('Newest first'); setPage(0);
     setActiveCategory(category);
+  }
+
+  /**
+   * Locked cards never open directly: the employee first proves the registered mobile
+   * by OTP. Records open only after the gateway confirms, and reveal whatever exists —
+   * an empty table honestly shows "no records" rather than implying an error.
+   */
+  function requestPrivateSection(category: Category) {
+    setUnlock({ category, mobile: '', otp: '', stage: 'mobileEntry', busy: false, error: null, verified: false });
+  }
+
+  async function sendOtp() {
+    if (!unlock || unlock.busy) return;
+    const mobile = normalizeMobile(unlock.mobile);
+    if (!validRegisteredMobile(unlock.mobile)) {
+      setUnlock({ ...unlock, error: 'Enter the 10-digit mobile number registered with the company.' });
+      return;
+    }
+    if (!privateAccess) {
+      setUnlock({ ...unlock, error: 'OTP is not connected on this portal yet. Ask the safety team for your records.' });
+      return;
+    }
+    setUnlock({ ...unlock, busy: true, error: null });
+    try {
+      await privateAccess.sendOtp(mobile);
+      setUnlock((current) => current && { ...current, mobile, busy: false, stage: 'otpEntry', otp: '' });
+    } catch {
+      setUnlock((current) => current && { ...current, busy: false, error: 'Could not send an OTP to this number. Check the registered number and try again.' });
+    }
+  }
+
+  async function verifyOtp() {
+    if (!unlock || unlock.busy || !privateAccess) return;
+    if (!validOtpCode(unlock.otp)) {
+      setUnlock({ ...unlock, error: 'Enter the 6-digit OTP sent to your mobile.' });
+      return;
+    }
+    setUnlock({ ...unlock, busy: true, error: null });
+    let ok = false;
+    try {
+      ok = await privateAccess.verifyOtp(unlock.mobile, unlock.otp.trim());
+    } catch {
+      setUnlock({ ...unlock, busy: false, error: 'Verification failed. Try again in a moment.' });
+      return;
+    }
+    if (!ok) {
+      setUnlock({ ...unlock, busy: false, otp: '', error: 'Incorrect or expired OTP. Check the SMS and try again.' });
+      return;
+    }
+    const category = unlock.category;
+    setUnlock(null);
+    openHistory(category);
   }
 
   async function copyPassNumber() {
@@ -220,7 +302,7 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
       const name = employee.name.trim().replace(/[^a-z\d]+/gi, '_').replace(/^_|_$/g, '').slice(0, 72) || 'Employee';
       const code = employee.empNo.replace(/[^a-z\d]/gi, '') || 'Employee';
       const link = document.createElement('a');
-      link.download = `${code}_${name}_Safety_Passport.png`;
+      link.download = `${code}_${name}_Safety_Profile.png`;
       link.href = data;
       document.body.append(link); link.click(); link.remove();
     } catch {
@@ -319,19 +401,31 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
                     {SUMMARY_CARDS.map((category) => {
                       const config = CATEGORY[category];
                       const Icon = config.icon;
-                      const rows = history[category];
-                      return <button key={category} type="button" className={`pp-kpi ${config.tone}`} onClick={() => openHistory(category)} aria-label={`Open ${config.label} records`}>
-                        <span className="pp-kpi-top">
-                          <span className="pp-kpi-icon"><Icon size={15} /></span>
-                          <span className="pp-kpi-badge">{rows ? config.badge : 'Private'}</span>
-                        </span>
-                        <span className="pp-kpi-value">{rows ? String(rows.length).padStart(2, '0') : '—'}</span>
-                        <span className="pp-kpi-label">{config.label}</span>
-                        <span className="pp-kpi-caption">{rows ? config.caption : 'Requires staff access'}</span>
-                      </button>;
+                      // A locked category is privacy-protected: records may exist, but the
+                      // passport shows no count; the card opens an OTP gate, not the table.
+                      const rows = config.locked ? undefined : history[category];
+                      return config.locked
+                        ? <button key={category} type="button" className={`pp-kpi ${config.tone} is-locked`} onClick={() => requestPrivateSection(category)} aria-haspopup="dialog" aria-label={`${config.label} · private — verify your registered mobile by OTP to view`}>
+                          <span className="pp-kpi-top">
+                            <span className="pp-kpi-icon"><Icon size={15} /></span>
+                            <span className="pp-kpi-badge"><Lock size={9} aria-hidden="true" /> Private</span>
+                          </span>
+                          <span className="pp-kpi-value">🔒</span>
+                          <span className="pp-kpi-label">{config.label}</span>
+                          <span className="pp-kpi-caption">Tap to verify & view</span>
+                        </button>
+                        : <button key={category} type="button" className={`pp-kpi ${config.tone}`} onClick={() => openHistory(category)} aria-label={`Open ${config.label} records`}>
+                          <span className="pp-kpi-top">
+                            <span className="pp-kpi-icon"><Icon size={15} /></span>
+                            <span className="pp-kpi-badge">{rows ? config.badge : 'Private'}</span>
+                          </span>
+                          <span className="pp-kpi-value">{rows ? String(rows.length).padStart(2, '0') : '—'}</span>
+                          <span className="pp-kpi-label">{config.label}</span>
+                          <span className="pp-kpi-caption">{rows ? config.caption : 'Requires staff access'}</span>
+                        </button>;
                     })}
                   </div>
-                  <p className="pp-note"><Lock size={14} /> Record counts are personal performance data, so public search shows none. Officers see them after sign-in.</p>
+                  <p className="pp-note"><Lock size={14} /> Feedback &amp; Suggestion, Grievance &amp; Speak Up and the Consequence Record are private: they open only after OTP verification on your registered mobile number. Other record counts are personal performance data — public search shows none.</p>
                 </section>
               </div>
 
@@ -354,28 +448,9 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
                   </div>
                 </section>
 
-                <section className="pp-card" aria-labelledby="pp-ppe-title">
-                  <div className="pp-card-head">
-                    <span className="pp-head-icon blue"><HardHat size={17} /></span>
-                    <div className="pp-head-copy">
-                      <h3 id="pp-ppe-title">PPE Management</h3>
-                      <p>Issue and renewal tracking</p>
-                    </div>
-                    <button type="button" className="pp-link" onClick={() => openHistory('ppe')}>View all <ChevronRight size={12} /></button>
-                  </div>
-                  {ppeRows.length ? <div className="pp-training-list">{ppeRows.map((row, index) => <div className="pp-training-row" key={`${row.date}-${index}`}>
-                    <span className="pp-training-icon"><HardHat size={16} /></span>
-                    <div><b>{row.title}</b><small>{row.date} · next {row.detail}</small></div>
-                    <span className="pp-status">{row.status}</span>
-                  </div>)}</div> : <div className="pp-empty"><HardHat size={22} /><b>No PPE records connected</b><span>PPE issue and renewal tracking is not linked to this profile yet.</span></div>}
-                </section>
-
                 <div className="pp-actions">
                   <button type="button" className="pp-action primary" onClick={() => void downloadPassport()} disabled={downloading}>
-                    <Download size={17} /> {downloading ? 'Generating…' : 'Download PNG'}
-                  </button>
-                  <button type="button" className="pp-action print" onClick={() => window.print()}>
-                    <Printer size={17} /> Download PDF
+                    <Download size={17} /> {downloading ? 'Generating…' : 'Download Profile'}
                   </button>
                 </div>
               </div>
@@ -401,6 +476,72 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
       </div>
     </div>
 
+    {unlock && <div className="pp-private-overlay" role="dialog" aria-modal="true" aria-labelledby="pp-private-title">
+      <div className="pp-private-dialog">
+        <header className="pp-private-head">
+          <span className="pp-private-icon"><KeyRound size={18} aria-hidden="true" /></span>
+          <div className="pp-private-head-copy">
+            <span className="pp-private-eyebrow">PRIVATE SECTION · {CATEGORY[unlock.category].label}</span>
+            <h2 id="pp-private-title">{unlock.stage === 'mobileEntry' ? 'Verify your mobile number' : 'Enter the OTP'}</h2>
+          </div>
+          <button type="button" className="pp-private-close" onClick={() => setUnlock(null)} aria-label="Close verification"><X size={18} /></button>
+        </header>
+        <p className="pp-private-lead">
+          {unlock.stage === 'mobileEntry'
+            ? `${CATEGORY[unlock.category].label} records are private. Enter the mobile number registered with ${employer} to receive an OTP on SMS.`
+            : `An OTP was sent to +91 ••••••${unlock.mobile.slice(-4)}. Enter it to view your ${CATEGORY[unlock.category].label} records, if any.`}
+        </p>
+        {unlock.stage === 'mobileEntry' ? (
+          <>
+            <label className="pp-private-label">
+              <span>Registered mobile number</span>
+              <span className="pp-private-input-row">
+                <Smartphone size={17} aria-hidden="true" />
+                <input
+                  className="pp-private-input"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  maxLength={14}
+                  value={unlock.mobile}
+                  onChange={(event) => setUnlock({ ...unlock, mobile: event.target.value.replace(/[^\d+\s]/g, ''), error: null })}
+                  placeholder="e.g. 98765 43210"
+                  aria-label="Registered mobile number"
+                />
+              </span>
+            </label>
+            {!privateAccess && <p className="pp-private-unavailable" role="status"><Lock size={13} aria-hidden="true" /> OTP verification needs the server SMS service, which is not connected to this portal yet.</p>}
+          </>
+        ) : (
+          <>
+            <label className="pp-private-label">
+              <span>6-digit OTP</span>
+              <input
+                className="pp-private-input pp-private-otp"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={unlock.otp}
+                onChange={(event) => setUnlock({ ...unlock, otp: event.target.value.replace(/\D/g, ''), error: null })}
+                placeholder="••••••"
+                aria-label="One-time password"
+                autoFocus
+              />
+            </label>
+            <button type="button" className="pp-private-link" onClick={() => setUnlock({ ...unlock, stage: 'mobileEntry', otp: '', error: null })}>Wrong number? Change it</button>
+          </>
+        )}
+        {unlock.error && <p className="pp-private-error" role="alert">{unlock.error}</p>}
+        <div className="pp-private-actions">
+          {unlock.stage === 'mobileEntry'
+            ? <button type="button" className="pp-private-primary" disabled={unlock.busy || !privateAccess} onClick={() => void sendOtp()}><Smartphone size={16} aria-hidden="true" /> {unlock.busy ? 'Sending OTP…' : 'Send OTP'}</button>
+            : <>
+                <button type="button" className="pp-private-primary" disabled={unlock.busy || unlock.otp.length !== 6} onClick={() => void verifyOtp()}><KeyRound size={16} aria-hidden="true" /> {unlock.busy ? 'Verifying…' : `Verify & open ${CATEGORY[unlock.category].label}`}</button>
+                <button type="button" className="pp-private-link" disabled={unlock.busy} onClick={() => void sendOtp()}>Resend OTP</button>
+              </>}
+        </div>
+      </div>
+    </div>}
+
     {activeCategory && active && <div className="passport-record-overlay" role="dialog" aria-modal="true" aria-labelledby="passport-record-title">
       <div className="passport-record-dialog">
         <header>
@@ -418,9 +559,14 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
             <thead><tr>{active.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
             <tbody>{visible.length ? visible.map((row, index) => <tr key={`${row.date}-${index}`}>
               <td>{row.date}</td><td>{row.title}</td><td>{row.detail}</td>
+              {active.tagHeader && <td>{row.tag ? <span className="passport-tag">{row.tag}</span> : '—'}</td>}
               {active.severity && <td>{row.severity || '—'}</td>}
               <td><span className="passport-status">{row.status}</span></td>
-            </tr>) : <tr><td colSpan={active.columns.length} className="passport-table-empty"><Lock size={20} /> {allRows.length ? 'No matching records.' : 'Records for this category are not connected yet. No sample history is shown.'}</td></tr>}</tbody>
+            </tr>) : <tr><td colSpan={active.columns.length} className="passport-table-empty"><Lock size={20} /> {allRows.length
+                ? 'No matching records.'
+                : active.locked
+                  ? `No ${active.label.toLowerCase()} records are linked to your Employee ID.`
+                  : 'Records for this category are not connected yet. No sample history is shown.'}</td></tr>}</tbody>
           </table>
         </div>
         <footer>
