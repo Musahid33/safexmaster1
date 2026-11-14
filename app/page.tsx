@@ -153,7 +153,8 @@ export default function SafexHome() {
   // Hero counters come from the tenant data source for the selected site only.
   const siteStats = currentSite?.stats ?? null;
   const statFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
-  const formatStat = useCallback((value: number | null | undefined) => value == null ? '–' : statFormatter.format(value), [statFormatter]);
+  // Until the tenant database supplies stats, every counter shows zero instead of fake numbers.
+  const formatStat = useCallback((value: number | null | undefined) => statFormatter.format(value ?? 0), [statFormatter]);
   const siteRecognitions = useMemo(() => recognitions === null ? null : forSelectedSite(recognitions, currentSite?.id), [recognitions, currentSite?.id]);
 
   useEffect(() => {
@@ -517,7 +518,7 @@ export default function SafexHome() {
           <section className="hero-strip hero-stats-banner" aria-labelledby="hero-days-heading">
             <span className="eyebrow hero-eyebrow">{appName}</span>
             <div className="hero-days-row">
-              <span className="hero-days-icon" aria-hidden="true"><CalendarCheck size={42} strokeWidth={2.1} /></span>
+              <span className="hero-days-icon" aria-hidden="true"><CalendarCheck size={34} strokeWidth={2.1} /></span>
               <h1 className="hero-days-heading" id="hero-days-heading">
                 <b className="hero-days-number">{formatStat(siteStats?.daysWithoutInjury)}</b>
                 <span className="hero-days-label"> {T('Days Without Injury')}</span>
@@ -525,15 +526,15 @@ export default function SafexHome() {
             </div>
             <div className="hero-metrics" aria-label={T('Site safety counters')}>
               <div className="hero-metric">
-                <span className="hero-metric-icon training" aria-hidden="true"><GraduationCap size={26} /></span>
+                <span className="hero-metric-icon training" aria-hidden="true"><GraduationCap size={22} /></span>
                 <span className="hero-metric-copy"><span className="hero-metric-label">{T('training')}</span><b className="hero-metric-value">{formatStat(siteStats?.trainingCount)}</b></span>
               </div>
               <div className="hero-metric">
-                <span className="hero-metric-icon near-miss" aria-hidden="true"><AlertTriangle size={26} /></span>
+                <span className="hero-metric-icon near-miss" aria-hidden="true"><AlertTriangle size={22} /></span>
                 <span className="hero-metric-copy"><span className="hero-metric-label">{T('nearMiss')}</span><b className="hero-metric-value">{formatStat(siteStats?.nearMissCount)}</b></span>
               </div>
               <div className="hero-metric">
-                <span className="hero-metric-icon observation" aria-hidden="true"><Eye size={26} /></span>
+                <span className="hero-metric-icon observation" aria-hidden="true"><Eye size={22} /></span>
                 <span className="hero-metric-copy"><span className="hero-metric-label">{T('safetyObservation')}</span><b className="hero-metric-value">{formatStat(siteStats?.safetyObservationCount)}</b></span>
               </div>
             </div>

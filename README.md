@@ -17,7 +17,7 @@ The Company Profile screen is a UI-only placeholder for About Us, Services, Addr
 
 ## Home hero safety stats
 
-The home hero banner shows four counters for the **selected site only**: Days Without Injury, Near Miss count, Safety Observation count and published Training count. The public portal RPC (`get_public_portal`) aggregates them per location: the days counter is derived from the location's `last_recordable_injury_at` (falling back to the location's creation date), and the other counts come from that location's reports and published training rows. Until a tenant data source supplies stats, each counter shows a placeholder dash. The Life Saving Rule entry sits below the View Reports row in Safety Resources and still opens the selected site's rule list.
+The home hero banner shows four counters for the **selected site only**: Days Without Injury, Near Miss count, Safety Observation count and published Training count. The public portal RPC (`get_public_portal`) aggregates them per location: the days counter is derived from the location's `last_recordable_injury_at` (falling back to the location's creation date), and the other counts come from that location's reports and published training rows. Until a tenant data source supplies stats, every counter shows zero rather than invented numbers. The compact banner keeps the three counters on a single line on desktop and mobile. The Life Saving Rule entry sits below the View Reports row in Safety Resources and still opens the selected site's rule list.
 
 ## Emergency contact and language
 
