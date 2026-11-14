@@ -8,7 +8,6 @@ import {
   Search, ShieldAlert, ShieldCheck, SlidersHorizontal, Smartphone, TriangleAlert, UserRound, X
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
 import type { Employee, Site } from '@/lib/types';
 import { normalizeMobile, validOtpCode, validRegisteredMobile, type PrivateAccessGateway } from '@/lib/private-access';
 import { useI18n } from './I18nProvider';
@@ -158,10 +157,8 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
   const [downloadError, setDownloadError] = useState('');
   const [toast, setToast] = useState('');
   const [generatedAt] = useState(() => new Date());
-  const [qrUrl, setQrUrl] = useState('');
   const [unlock, setUnlock] = useState<PrivateUnlock | null>(null);
 
-  useEffect(() => { setQrUrl(window.location.origin); }, []);
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
@@ -458,7 +455,6 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
           </div>
 
           <footer className="pp-footer">
-            <div className="pp-qr">{qrUrl ? <QRCodeSVG value={qrUrl} size={64} marginSize={0} title="Scan to open Safex" /> : <ShieldCheck size={44} />}<small>Scan to open Safex</small></div>
             <div className="pp-footer-person">
               <b>{employee.empNo}</b>
               <strong>{employee.name}</strong>
