@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { Search, X } from 'lucide-react';
 import type { EmployeeDirectory } from '@/lib/employee-directory';
+import type { PrivateAccessGateway } from '@/lib/private-access';
 import type { DirectoryUnavailableReason, Employee, Site } from '@/lib/types';
 import { useI18n } from './I18nProvider';
 import EmployeePassport from './EmployeePassport';
@@ -17,6 +18,8 @@ type Props = {
   directoryReason?: DirectoryUnavailableReason | null;
   employeeCount?: number;
   onClose: () => void;
+  /** Server-backed OTP service for private passport sections; absent means fail closed. */
+  privateAccess?: PrivateAccessGateway | null;
 };
 
 const SOURCE_LABEL: Record<'supabase' | 'sheet' | 'unavailable', string> = {
@@ -39,7 +42,7 @@ const UNAVAILABLE_HINT: Record<DirectoryUnavailableReason, string> = {
 };
 type UiMessage = { key: string; params?: Record<string, string | number> };
 
-export default function ProfileSearchDialog({ site, companyName, directory, directoryMode, directoryReason, employeeCount = 0, onClose }: Props) {
+export default function ProfileSearchDialog({ site, companyName, directory, directoryMode, directoryReason, employeeCount = 0, onClose, privateAccess = null }: Props) {
   const { T } = useI18n();
   const [employeeId, setEmployeeId] = useState('');
   const [result, setResult] = useState<Employee | null>(null);
@@ -77,6 +80,7 @@ export default function ProfileSearchDialog({ site, companyName, directory, dire
       companyName={companyName}
       onBack={() => { setResult(null); setEmployeeId(''); setMessage(null); }}
       onClose={onClose}
+      privateAccess={privateAccess}
     />;
   }
 

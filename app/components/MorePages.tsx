@@ -80,7 +80,7 @@ export function MoreMenuPage({ title, companyName, onInstall, onCompanyAbout, on
       <MoreOptionCard icon={Palette} tone="appearance" title="Appearance" description="Light Mode, Dark Mode and System Default" onClick={onAppearance} />
       <MoreOptionCard icon={ShieldCheck} tone="about-app" title="Privacy Policy" description="Read our data privacy policy" onClick={onPrivacy} />
     </div>
-    <footer className="more-brand-footer">{T('Powered by')} SafexSafety · <span>www.safex.com</span></footer>
+    <footer className="more-brand-footer">{T('Powered by')} Safex · <span>www.safex.us.cc</span></footer>
   </section>;
 }
 
@@ -243,7 +243,7 @@ export function AboutAppPage({ company, onBack, onOpenInfo }: {
       <div className="about-app-facts">
         <div><span>{T('App Name')}</span><b>{appName}</b></div>
         <div><span>{T('Version')}</span><b>{APP_VERSION}</b></div>
-        <div><span>{T('Powered by')}</span><a href={SAFEX_WEBSITE_URL} target="_blank" rel="noopener noreferrer">Safex.com <ExternalLink size={13} /></a></div>
+        <div><span>{T('Powered by')}</span><a href={SAFEX_WEBSITE_URL} target="_blank" rel="noopener noreferrer">Safex.us.cc <ExternalLink size={13} /></a></div>
       </div>
     </div>
     <div className="about-app-section-heading"><span className="eyebrow">{T('INFORMATION & SUPPORT')}</span></div>
