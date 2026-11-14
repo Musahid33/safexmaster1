@@ -139,13 +139,19 @@ export default function SafexHome() {
   const safetyAlertsScrollRef = useRef<HTMLDivElement>(null);
   const safetyAlertsTouchStart = useRef<{ x: number; y: number } | null>(null);
 
-  const nextUpcomingEvent = useMemo(() => contentFeed
+  const currentSite = sites.find((site) => site.id === siteId) ?? null;
+  // Events / Circulars / Notices follow the selected site. Items without a site tag are
+  // company-wide and appear everywhere; tagged items show only for their site.
+  const siteFeed = useMemo(
+    () => contentFeed.filter((item) => !item.siteId || item.siteId === currentSite?.id),
+    [contentFeed, currentSite?.id]
+  );
+  const nextUpcomingEvent = useMemo(() => siteFeed
     .filter((item) => item.type === 'Event' && new Date(item.date).getTime() >= Date.now())
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] ?? null, [contentFeed]);
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] ?? null, [siteFeed]);
   const filteredSafetyAlerts = useMemo(() => publishedAlerts
     .filter((alert) => safetyAlertFilter === 'All' || alert.category === safetyAlertFilter)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [publishedAlerts, safetyAlertFilter]);
-  const currentSite = sites.find((site) => site.id === siteId) ?? null;
   // The selected tenant/site supplies this number; never substitute another tenant’s contact.
   const sosNumber = currentSite?.sosNumber?.trim() || null;
   const sosDialHref = telHref(sosNumber);
@@ -613,13 +619,13 @@ export default function SafexHome() {
 
         {page === 'reports' && <section className="page-panel">
           <div className="page-heading"><div><span className="eyebrow">{currentSite?.name ?? T('SITE')}</span><h1>{T('reportsTitle')}</h1></div><button className="secondary-button" onClick={() => !isSingleSite && openSitePicker('reports')}>{T('changeSite')}</button></div>
-          <LoggedReports siteId={currentSite?.id} siteName={currentSite?.name} />
+          <LoggedReports sites={sites} />
         </section>}
 
-        {page === 'alerts' && <FeedArchivePage kind="notices" siteName={currentSite?.name ?? T('Selected site')} items={contentFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
-        {page === 'events' && <FeedArchivePage kind="events" siteName={currentSite?.name ?? T('Selected site')} items={contentFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
-        {page === 'circulars' && <FeedArchivePage kind="circulars" siteName={currentSite?.name ?? T('Selected site')} items={contentFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
-        {page === 'updates' && <FeedArchivePage kind="updates" siteName={currentSite?.name ?? T('Selected site')} items={contentFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
+        {page === 'alerts' && <FeedArchivePage kind="notices" siteName={currentSite?.name ?? T('Selected site')} items={siteFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
+        {page === 'events' && <FeedArchivePage kind="events" siteName={currentSite?.name ?? T('Selected site')} items={siteFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
+        {page === 'circulars' && <FeedArchivePage kind="circulars" siteName={currentSite?.name ?? T('Selected site')} items={siteFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
+        {page === 'updates' && <FeedArchivePage kind="updates" siteName={currentSite?.name ?? T('Selected site')} items={siteFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
 
         {page === 'training' && <TrainingPortal site={currentSite} />}
 

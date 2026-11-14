@@ -18,6 +18,14 @@
 
 .mlr-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .mlr-head h2 { margin: 0; font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
+.mlr-head-tools { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mlr-site-select {
+  max-width: 150px; padding: 5px 24px 5px 10px; border: 1px solid #d7e1ee; border-radius: 9px;
+  background: #f8fafd url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2352637c' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 8px center;
+  appearance: none; font-size: 12px; font-weight: 650; color: #243752; cursor: pointer;
+  text-overflow: ellipsis; white-space: nowrap; overflow: hidden;
+}
+.mlr-site-select:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; border-color: #93b8f5; }
 
 .mlr-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mlr-search {

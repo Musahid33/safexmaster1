@@ -11,6 +11,11 @@ export type HomeFeedItem = {
   summary: string;
   details: string;
   location?: string;
+  /**
+   * Site this content belongs to. Absent/null means company-wide: it shows on every
+   * site. A tag limits the item to the selected site on the home page.
+   */
+  siteId?: string | null;
   /** Present when a published circular/notice carries a file or a link. */
   attachmentUrl?: string | null;
 };
