@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Filter, ImagePlus, Loader2, RefreshCw, Search, X } from 'lucide-react';
-import type { ReportStatus, ReportType } from '@/lib/types';
+import type { ReportStatus, ReportType, Site } from '@/lib/types';
 import './logged-reports.css';
 
 /**
@@ -17,7 +17,7 @@ import './logged-reports.css';
  * because a site feed with no name on it is not actionable.
  */
 
-type LoggedReport = {
+export type LoggedReport = {
   reference: string;
   type: ReportType;
   category: string | null;
@@ -33,6 +33,9 @@ type LoggedReport = {
   reporterName: string | null;
   hasPhoto: boolean;
   photoUrl: string | null;
+  /** Which site logged it — the server fills these; used by the location dropdown. */
+  siteId?: string;
+  siteName?: string;
 };
 
 type Feed = { reports: LoggedReport[]; total: number };
@@ -55,7 +58,10 @@ function formatDay(value: string | null | undefined): string {
   return new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
 }
 
-export default function LoggedReports({ siteId, siteName }: { siteId?: string; siteName?: string }) {
+export default function LoggedReports({ sites = [], demoReports }: { sites?: Site[]; demoReports?: readonly LoggedReport[] }) {
+  // '' means All locations: the feed opens company-wide by default; the little dropdown
+  // beside the heading narrows it to one site when you want a single location.
+  const [siteChoice, setSiteChoice] = useState('');
   const [feed, setFeed] = useState<Feed>({ reports: [], total: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -66,15 +72,19 @@ export default function LoggedReports({ siteId, siteName }: { siteId?: string; s
   const [selected, setSelected] = useState<LoggedReport | null>(null);
   const [photoBroken, setPhotoBroken] = useState(false);
   const load = useCallback(async (_offset = 0, _options: { quiet?: boolean } = {}) => {
+    if (demoReports) {
+      const list = demoReports.filter((report) => !siteChoice || report.siteId === siteChoice);
+      setFeed({ reports: list, total: list.length });
+      setError('');
+      return;
+    }
     setFeed({ reports: [], total: 0 });
     setError('Reports are not connected in the UI preview.');
-  }, []);
+  }, [demoReports, siteChoice]);
 
   useEffect(() => {
-    setFeed({ reports: [], total: 0 });
-    setError('Reports are not connected in the UI preview.');
-    setLoading(false);
-  }, [siteId]);
+    void load().finally(() => setLoading(false));
+  }, [load]);
 
   // A cached photo link is signed for ten minutes; if it has expired, say so instead of
   // showing a broken image.
@@ -130,9 +140,20 @@ export default function LoggedReports({ siteId, siteName }: { siteId?: string; s
   return <section className="mlr-card">
     <div className="mlr-head">
       <h2>Logged reports</h2>
-      <button className="mlr-ghost" type="button" onClick={() => void refresh()} disabled={loading || refreshing}>
-        {loading || refreshing ? <Loader2 size={14} className="mlr-spin" /> : <RefreshCw size={14} />} Refresh
-      </button>
+      <div className="mlr-head-tools">
+        <select
+          className="mlr-site-select"
+          value={siteChoice}
+          onChange={(event) => setSiteChoice(event.target.value)}
+          aria-label="Filter reports by location"
+        >
+          <option value="">All locations</option>
+          {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <button className="mlr-ghost" type="button" onClick={() => void refresh()} disabled={loading || refreshing}>
+          {loading || refreshing ? <Loader2 size={14} className="mlr-spin" /> : <RefreshCw size={14} />} Refresh
+        </button>
+      </div>
     </div>
 
     <div className="mlr-toolbar">
@@ -173,16 +194,12 @@ export default function LoggedReports({ siteId, siteName }: { siteId?: string; s
 
     {loading && <div className="mlr-loading"><Loader2 size={18} className="mlr-spin" /> Loading reports…</div>}
 
-    {!siteId && !loading && <div className="mlr-empty">
-      <ClipboardList size={26} aria-hidden="true" />
-      <b>Choose a site first</b>
-      <span>Logged reports are shown per site.</span>
-    </div>}
-
-    {siteId && !loading && !error && feed.reports.length === 0 && <div className="mlr-empty">
+    {!loading && !error && feed.reports.length === 0 && <div className="mlr-empty">
       <ClipboardList size={26} aria-hidden="true" />
       <b>No reports logged yet</b>
-      <span>{siteName ? `${siteName} me` : 'Is site me'} abhi koi report database me nahi hai.</span>
+      <span>{siteChoice
+        ? `${sites.find((s) => s.id === siteChoice)?.name ?? 'Is location'} me abhi koi report database me nahi hai.`
+        : 'Kisi bhi location me abhi koi report database me nahi hai.'}</span>
     </div>}
 
     {!loading && !error && feed.reports.length > 0 && visible.length === 0 && <div className="mlr-empty">
@@ -205,6 +222,7 @@ export default function LoggedReports({ siteId, siteName }: { siteId?: string; s
           </span>
           <span className="mlr-report-meta">
             {report.hasPhoto && <ImagePlus size={13} className="mlr-photo-flag" aria-label="Photo attached" />}
+            {!siteChoice && report.siteName && <span className="mlr-report-site">{report.siteName}</span>}
             <span>{report.area || 'Area not stated'}</span>
             <span>{report.reporterName || 'Reporter not recorded'}</span>
             <span>{formatDay(report.filedAt)}</span>

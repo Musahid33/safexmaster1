@@ -469,7 +469,7 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
           </div>
 
           <footer className="pp-footer">
-            <div className="pp-qr">{qrUrl ? <QRCodeSVG value={qrUrl} size={72} marginSize={0} title="Scan to open this profile" aria-label="QR code — scanning opens this employee's profile" /> : <ShieldCheck size={52} />}</div>
+            <div className="pp-qr">{qrUrl ? <QRCodeSVG value={qrUrl} size={60} marginSize={0} title="Scan to open this profile" aria-label="QR code — scanning opens this employee's profile" /> : <ShieldCheck size={42} />}</div>
             <div className="pp-footer-person">
               <b>{employee.empNo}</b>
               <strong>{employee.name}</strong>

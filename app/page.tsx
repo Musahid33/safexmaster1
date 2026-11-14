@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
 import { forSelectedSite, initialSiteId, siteStorageKey } from '@/lib/site-selection';
+import { DEMO_FEED, DEMO_RECOGNITIONS, DEMO_REPORTS, DEMO_SITES } from '@/lib/demo-fixture';
 import { portalName } from '@/lib/portal-branding';
 import { pendingReports, queueReport, syncQueuedReports, type ReportSender } from '@/lib/offline-report-queue';
 import { SAFETY_ALERTS, SAFETY_ALERT_FILTERS, type SafetyAlert, type SafetyAlertCategory } from '@/lib/safety-alerts';
@@ -90,6 +91,11 @@ export default function SafexHome() {
   const company = brandingFor(brandCompanyName);
   const appName = portalName(companyName);
   const locale = LANGUAGE_LOCALE[language];
+  // TEMPORARY DEMO MODE: ?demo=1 in the URL (development builds only) runs the home
+  // experience on lib/demo-fixture.ts sample data so site filtering, the View Reports
+  // dropdown and the hero banner can be tested before the database connects. Removed
+  // before production together with the fixture file.
+  const [demoMode] = useState(() => process.env.NODE_ENV === 'development' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('demo'));
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [page, setPage] = useState<PageKey>('home');
   const [accountReturnPage, setAccountReturnPage] = useState<PageKey>('home');
@@ -98,6 +104,9 @@ export default function SafexHome() {
   // Empty preview content for the vault and home feed.
   const [vaultDocuments] = useState<VaultDocument[]>([]);
   const [contentFeed] = useState<HomeFeedItem[]>([]);
+  const displaySites = demoMode ? DEMO_SITES : sites;
+  const displayFeed = demoMode ? DEMO_FEED : contentFeed;
+  const displayRecognitions = demoMode ? DEMO_RECOGNITIONS : recognitions;
   const [siteId, setSiteId] = useState('');
   const [siteReady, setSiteReady] = useState(false);
   const [siteDialog, setSiteDialog] = useState(false);
@@ -139,24 +148,30 @@ export default function SafexHome() {
   const safetyAlertsScrollRef = useRef<HTMLDivElement>(null);
   const safetyAlertsTouchStart = useRef<{ x: number; y: number } | null>(null);
 
-  const nextUpcomingEvent = useMemo(() => contentFeed
+  const currentSite = displaySites.find((site) => site.id === siteId) ?? null;
+  // Events / Circulars / Notices follow the selected site. Items without a site tag are
+  // company-wide and appear everywhere; tagged items show only for their site.
+  const siteFeed = useMemo(
+    () => displayFeed.filter((item) => !item.siteId || item.siteId === currentSite?.id),
+    [displayFeed, currentSite?.id]
+  );
+  const nextUpcomingEvent = useMemo(() => siteFeed
     .filter((item) => item.type === 'Event' && new Date(item.date).getTime() >= Date.now())
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] ?? null, [contentFeed]);
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0] ?? null, [siteFeed]);
   const filteredSafetyAlerts = useMemo(() => publishedAlerts
     .filter((alert) => safetyAlertFilter === 'All' || alert.category === safetyAlertFilter)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [publishedAlerts, safetyAlertFilter]);
-  const currentSite = sites.find((site) => site.id === siteId) ?? null;
   // The selected tenant/site supplies this number; never substitute another tenant’s contact.
   const sosNumber = currentSite?.sosNumber?.trim() || null;
   const sosDialHref = telHref(sosNumber);
-  const isSingleSite = sites.length === 1;
+  const isSingleSite = displaySites.length === 1;
   const selectedRules = currentSite?.lifeSavingRules ?? [];
   // Hero counters come from the tenant data source for the selected site only.
   const siteStats = currentSite?.stats ?? null;
   const statFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   // Until the tenant database supplies stats, every counter shows zero instead of fake numbers.
   const formatStat = useCallback((value: number | null | undefined) => statFormatter.format(value ?? 0), [statFormatter]);
-  const siteRecognitions = useMemo(() => recognitions === null ? null : forSelectedSite(recognitions, currentSite?.id), [recognitions, currentSite?.id]);
+  const siteRecognitions = useMemo(() => displayRecognitions === null ? null : forSelectedSite(displayRecognitions, currentSite?.id), [displayRecognitions, currentSite?.id]);
 
   useEffect(() => {
     try {
@@ -194,12 +209,12 @@ export default function SafexHome() {
     let savedId: string | null = null;
     try { if (tenantId) savedId = localStorage.getItem(siteStorageKey(tenantId)); }
     catch { /* Without storage, a multi-site tenant will need to choose again. */ }
-    const selectedSite = initialSiteId(savedId, sites);
+    const selectedSite = initialSiteId(savedId, displaySites);
     if (selectedSite) {
       setSiteId(selectedSite);
       setSiteDraft(selectedSite);
       setSiteDialog(false);
-      if (sites.length === 1 && tenantId) {
+      if (displaySites.length === 1 && tenantId) {
         try { localStorage.setItem(siteStorageKey(tenantId), selectedSite); } catch { /* The selection still applies for this visit. */ }
       }
     } else {
@@ -208,7 +223,7 @@ export default function SafexHome() {
       setSiteDialog(true);
     }
     setSiteReady(true);
-  }, [directoryReady, siteReady, sites, tenantId]);
+  }, [directoryReady, siteReady, displaySites, tenantId]);
 
   useEffect(() => {
     if (!tenantId) { setPendingReportCount(null); return; }
@@ -297,7 +312,7 @@ export default function SafexHome() {
   }
 
   function chooseSite(id: string) {
-    const valid = sites.find((site) => site.id === id);
+    const valid = displaySites.find((site) => site.id === id);
     if (!valid) return;
     setSiteId(valid.id);
     setSiteDraft(valid.id);
@@ -442,14 +457,15 @@ export default function SafexHome() {
   const nextEventStatus = nextUpcomingEvent ? getUpcomingEventStatus(nextUpcomingEvent.date) : null;
 
   const siteSelectionDialog = siteReady && siteDialog ? (
-    <div className="overlay site-overlay" role="dialog" aria-modal="true" aria-labelledby="site-title"><div className="modal site-modal">{(currentSite || sites.length === 0) && <div className="site-modal-actions"><button className="close-button" type="button" onClick={() => setSiteDialog(false)} aria-label={T('Close site selection')}><X /></button></div>}<LanguageStrip language={language} onChange={setLanguage} className="site-language-strip" /><span className="eyebrow">{T('SITE SELECTION')}</span><h2 id="site-title">{T('sitePrompt')}</h2><p>{T('Select your work site. Your choice will be remembered on this device and can be changed later.')}</p>{sites.length === 0
+    <div className="overlay site-overlay" role="dialog" aria-modal="true" aria-labelledby="site-title"><div className="modal site-modal">{(currentSite || displaySites.length === 0) && <div className="site-modal-actions"><button className="close-button" type="button" onClick={() => setSiteDialog(false)} aria-label={T('Close site selection')}><X /></button></div>}<LanguageStrip language={language} onChange={setLanguage} className="site-language-strip" /><span className="eyebrow">{T('SITE SELECTION')}</span><h2 id="site-title">{T('sitePrompt')}</h2><p>{T('Select your work site. Your choice will be remembered on this device and can be changed later.')}</p>{displaySites.length === 0
               ? <div className="inline-notice warning">{T('No sites are connected in this UI preview.')}</div>
-              : <><label className="field-label" htmlFor="site-select">{T('selectSite')}</label><select id="site-select" className="form-control" value={siteDraft} onChange={(e) => setSiteDraft(e.target.value)}><option value="" disabled>{T('Select a site')}</option>{sites.map((site) => <option key={site.id} value={site.id}>{site.name} · {site.region}</option>)}</select><button className="primary-button full-button" type="button" disabled={!siteDraft} onClick={() => chooseSite(siteDraft)}>{T('continue')} <ChevronRight size={17} /></button></>}</div></div>
+              : <><label className="field-label" htmlFor="site-select">{T('selectSite')}</label><select id="site-select" className="form-control" value={siteDraft} onChange={(e) => setSiteDraft(e.target.value)}><option value="" disabled>{T('Select a site')}</option>{displaySites.map((site) => <option key={site.id} value={site.id}>{site.name} · {site.region}</option>)}</select><button className="primary-button full-button" type="button" disabled={!siteDraft} onClick={() => chooseSite(siteDraft)}>{T('continue')} <ChevronRight size={17} /></button></>}</div></div>
   ) : null;
 
   return (
     <div className="safex-app">
       <div role="status" style={{ background: "#fff4d6", color: "#513900", textAlign: "center", padding: "8px 12px", fontSize: 13 }}>UI preview only · No live data or server report submissions{pendingReportCount ? ` · ${pendingReportCount} report(s) saved on this device, not sent` : ''}</div>
+      {demoMode && <div role="status" className="demo-ribbon">DEMO MODE · sample sites, stats, events &amp; reports (temporary — removed before production)</div>}
       <div className="site-header-shell">
         <header className="topbar">
           <div className="topbar-inner">
@@ -613,13 +629,13 @@ export default function SafexHome() {
 
         {page === 'reports' && <section className="page-panel">
           <div className="page-heading"><div><span className="eyebrow">{currentSite?.name ?? T('SITE')}</span><h1>{T('reportsTitle')}</h1></div><button className="secondary-button" onClick={() => !isSingleSite && openSitePicker('reports')}>{T('changeSite')}</button></div>
-          <LoggedReports siteId={currentSite?.id} siteName={currentSite?.name} />
+          <LoggedReports sites={displaySites} demoReports={demoMode ? DEMO_REPORTS : undefined} />
         </section>}
 
-        {page === 'alerts' && <FeedArchivePage kind="notices" siteName={currentSite?.name ?? T('Selected site')} items={contentFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
-        {page === 'events' && <FeedArchivePage kind="events" siteName={currentSite?.name ?? T('Selected site')} items={contentFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
-        {page === 'circulars' && <FeedArchivePage kind="circulars" siteName={currentSite?.name ?? T('Selected site')} items={contentFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
-        {page === 'updates' && <FeedArchivePage kind="updates" siteName={currentSite?.name ?? T('Selected site')} items={contentFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
+        {page === 'alerts' && <FeedArchivePage kind="notices" siteName={currentSite?.name ?? T('Selected site')} items={siteFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
+        {page === 'events' && <FeedArchivePage kind="events" siteName={currentSite?.name ?? T('Selected site')} items={siteFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
+        {page === 'circulars' && <FeedArchivePage kind="circulars" siteName={currentSite?.name ?? T('Selected site')} items={siteFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
+        {page === 'updates' && <FeedArchivePage kind="updates" siteName={currentSite?.name ?? T('Selected site')} items={siteFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
 
         {page === 'training' && <TrainingPortal site={currentSite} />}
 
