@@ -118,8 +118,26 @@
 }
 .admin-login .account-reset:hover { text-decoration: underline; }
 
-.admin-login .inline-notice {
-  padding: 11px 12px;
+.admin-login .account-demo-form { margin-top: 14px; }
+.admin-login .account-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 50px;
+  border: 2px dashed #0844af;
+  border-radius: 12px;
+  background: #eef4fd;
+  color: #063eae;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+.admin-login .account-demo:hover { background: #e0ecfd; border-color: #063eae; }
+
+.admin-login .inline-notice {  padding: 11px 12px;
   border: 1px solid #d7e1ec;
   border-radius: 10px;
   background: #f3f7fb;

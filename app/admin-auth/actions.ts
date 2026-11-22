@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 import { ACTIVE_COMPANY_COOKIE } from '@/lib/server/admin-guard';
 import { privilegedClient, sessionClient } from '@/lib/server/supabase-auth';
 import { mayAccessAdmin, validAdminLogin } from '@/lib/admin-access';
-import { ADMIN_DEMO_COOKIE, validAdminDemoLogin } from '@/lib/admin-demo';
+import { ADMIN_DEMO_COOKIE, isAdminDemoEnabled, validAdminDemoLogin } from '@/lib/admin-demo';
 
 export type LoginState = { error: string };
 const failure = { error: 'Unable to sign in. Check your details or try again later.' };
@@ -72,6 +72,13 @@ async function login(form: FormData): Promise<LoginState> {
   return failure;
 }
 export async function companyLogin(_previous: LoginState, form: FormData) { return login(form); }
+/** One-click demo sign-in for preview/testing. No-op outside the demo environment. */
+export async function demoLogin() {
+  if (!isAdminDemoEnabled()) redirect('/company-admin/login');
+  const store = await cookies();
+  store.set(ADMIN_DEMO_COOKIE, '1', { httpOnly: true, sameSite: 'lax', secure: false, path: '/' });
+  redirect('/company-admin/dashboard');
+}
 export async function signOut() {
   try { const client = await sessionClient(); await client.auth.signOut(); } catch { /* Clear local cookies even if the provider is unavailable. */ }
   try {

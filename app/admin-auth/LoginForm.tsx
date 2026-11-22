@@ -1,7 +1,7 @@
 'use client';
 import { useActionState, useState, type FormEvent } from 'react';
 import { ArrowRight, Eye, EyeOff, Info, LockKeyhole, UserRound } from 'lucide-react';
-import { companyLogin } from './actions';
+import { companyLogin, demoLogin } from './actions';
 
 export function LoginForm({ connected, demoEnabled }: { connected: boolean; demoEnabled: boolean }) {
   const [state, action, pending] = useActionState(companyLogin, { error: '' });
@@ -43,6 +43,9 @@ export function LoginForm({ connected, demoEnabled }: { connected: boolean; demo
       </button>
       <button className="account-reset" type="button" onClick={() => setMessage('Password reset is not connected in this UI preview.')}>Reset Password</button>
     </form>
+    {demoEnabled && <form action={demoLogin} className="account-demo-form">
+      <button className="account-demo" type="submit">Login as Demo</button>
+    </form>}
     {(message || state.error) && <div className="inline-notice account-form-message" role="status">{message || state.error}</div>}
     <div className="account-preview-note">
       <Info size={16} aria-hidden="true" />
