@@ -22,57 +22,47 @@ async function limit(identifier: string) {
   }
   return true;
 }
-async function login(kind: 'owner' | 'company', form: FormData): Promise<LoginState> {
+async function login(form: FormData): Promise<LoginState> {
   const username = normalize(form.get('username'));
   const slug = normalize(form.get('company'));
   const password = form.get('password');
-  if (!validAdminLogin(kind, username, slug, password) || typeof password !== 'string') return failure;
+  if (!validAdminLogin(username, slug, password) || typeof password !== 'string') return failure;
   let success = false;
   try {
-    if (!await limit(`${kind}:${slug}:${username}`)) return failure;
-    let email = username;
-    let companyId: string | null = null;
-    if (kind === 'company') {
-      const { data, error } = await privilegedClient().rpc('resolve_company_admin_login', { p_slug: slug, p_username: username });
-      if (error) return unavailable;
-      const identity = Array.isArray(data) ? data[0] : null;
-      // A nonexistent username follows the same authentication path without exposing lookup results.
-      email = identity?.email ?? 'not-an-account@invalid.example';
-      companyId = identity?.company_id ?? null;
-    }
+    if (!await limit(`company:${slug}:${username}`)) return failure;
+    const { data, error } = await privilegedClient().rpc('resolve_company_admin_login', { p_slug: slug, p_username: username });
+    if (error) return unavailable;
+    const identity = Array.isArray(data) ? data[0] : null;
+    // A nonexistent username follows the same authentication path without exposing lookup results.
+    const email = identity?.email ?? 'not-an-account@invalid.example';
+    const companyId = identity?.company_id ?? null;
     const supabase = await sessionClient();
     const { data: signedIn, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError || !signedIn.user || (kind === 'company' && !companyId)) {
+    if (signInError || !signedIn.user || !companyId) {
       if (signedIn.user) await supabase.auth.signOut();
       return failure;
     }
     const { data: verified, error: verifyError } = await supabase.auth.getUser();
     const { data: access, error: accessError } = await supabase.rpc('current_admin_access');
     const row = Array.isArray(access) ? access[0] : null;
-    if (verifyError || !verified.user || accessError || !row || !mayAccessAdmin(kind, row, kind === 'company' ? companyId : undefined)) {
+    if (verifyError || !verified.user || accessError || !row || !mayAccessAdmin(row, companyId)) {
       await supabase.auth.signOut();
       return failure;
     }
     const store = await cookies();
-    if (kind === 'company' && companyId) {
-      store.set(ACTIVE_COMPANY_COOKIE, companyId, {
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
-        path: '/'
-      });
-    } else {
-      store.delete(ACTIVE_COMPANY_COOKIE);
-    }
+    store.set(ACTIVE_COMPANY_COOKIE, companyId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/'
+    });
     success = true;
   } catch { return unavailable; }
-  if (success) redirect(kind === 'owner' ? '/super-admin/dashboard' : '/company-admin/dashboard');
+  if (success) redirect('/company-admin/dashboard');
   return failure;
 }
-export async function ownerLogin(_previous: LoginState, form: FormData) { return login('owner', form); }
-export async function companyLogin(_previous: LoginState, form: FormData) { return login('company', form); }
-export async function signOut(form: FormData) {
-  const destination = form.get('portal') === 'owner' ? '/super-admin/login' : '/company-admin/login';
+export async function companyLogin(_previous: LoginState, form: FormData) { return login(form); }
+export async function signOut() {
   try { const client = await sessionClient(); await client.auth.signOut(); } catch { /* Clear local cookies even if the provider is unavailable. */ }
   try {
     const store = await cookies();
@@ -86,5 +76,5 @@ export async function signOut(form: FormData) {
       }
     }
   } catch { /* No valid configured project or cookie store. */ }
-  redirect(destination);
+  redirect('/company-admin/login');
 }
