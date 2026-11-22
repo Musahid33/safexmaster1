@@ -15,6 +15,7 @@ import { SAFETY_ALERTS, SAFETY_ALERT_FILTERS, type SafetyAlert, type SafetyAlert
 import { APP_FEATURES, brandingFor } from '@/lib/app-config';
 import { telHref } from '@/lib/emergency';
 import { LANGUAGES, LANGUAGE_LOCALE } from '@/lib/i18n';
+import { appendResourceQuery } from '@/lib/safe-url';
 import LanguageStrip from './components/LanguageStrip';
 import { useI18n } from './components/I18nProvider';
 import ReportWorkflow, { type ReportSubmission } from './components/ReportWorkflow';
@@ -95,7 +96,8 @@ export default function SafexHome() {
   // experience on lib/demo-fixture.ts sample data so site filtering, the View Reports
   // dropdown and the hero banner can be tested before the database connects. Removed
   // before production together with the fixture file.
-  const [demoMode] = useState(() => process.env.NODE_ENV === 'development' && typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('demo'));
+  const [demoMode, setDemoMode] = useState(false);
+  const [demoChecked, setDemoChecked] = useState(process.env.NODE_ENV !== 'development');
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [page, setPage] = useState<PageKey>('home');
   const [accountReturnPage, setAccountReturnPage] = useState<PageKey>('home');
@@ -203,9 +205,20 @@ export default function SafexHome() {
     };
   }, []);
 
-  // A site choice is remembered on this device for this tenant, not shared across tenants.
   useEffect(() => {
-    if (!directoryReady || siteReady) return;
+    if (process.env.NODE_ENV === 'development') {
+      if (new URLSearchParams(window.location.search).has('demo')) setDemoMode(true);
+      setDemoChecked(true);
+    }
+  }, []);
+
+  // A site choice is remembered on this device for this tenant, not shared across tenants.
+  const lastTenantRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!directoryReady || !demoChecked) return;
+    const scopeKey = `${tenantId ?? ''}|${demoMode ? 'demo' : 'live'}`;
+    if (siteReady && lastTenantRef.current === scopeKey) return;
+    lastTenantRef.current = scopeKey;
     let savedId: string | null = null;
     try { if (tenantId) savedId = localStorage.getItem(siteStorageKey(tenantId)); }
     catch { /* Without storage, a multi-site tenant will need to choose again. */ }
@@ -223,7 +236,7 @@ export default function SafexHome() {
       setSiteDialog(true);
     }
     setSiteReady(true);
-  }, [directoryReady, siteReady, displaySites, tenantId]);
+  }, [directoryReady, demoChecked, siteReady, displaySites, tenantId, demoMode]);
 
   useEffect(() => {
     if (!tenantId) { setPendingReportCount(null); return; }
@@ -294,6 +307,22 @@ export default function SafexHome() {
       document.removeEventListener('keydown', closeOnEscape);
     };
   }, [safetyAlertsOpen]);
+
+  useEffect(() => {
+    const anyDialogOpen = lifeRuleOpen || quickConcernChooserOpen || reportPickerOpen || notificationsOpen || sosOpen || (siteReady && siteDialog && (Boolean(currentSite) || displaySites.length === 0));
+    if (!anyDialogOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (sosOpen) setSosOpen(false);
+      else if (notificationsOpen) setNotificationsOpen(false);
+      else if (lifeRuleOpen) setLifeRuleOpen(false);
+      else if (quickConcernChooserOpen) setQuickConcernChooserOpen(false);
+      else if (reportPickerOpen) setReportPickerOpen(false);
+      else if (siteReady && siteDialog && (Boolean(currentSite) || displaySites.length === 0)) setSiteDialog(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [lifeRuleOpen, quickConcernChooserOpen, reportPickerOpen, notificationsOpen, sosOpen, siteReady, siteDialog, currentSite, displaySites.length]);
 
   useEffect(() => {
     try { localStorage.setItem('safex-push-preferences', JSON.stringify(pushPrefs)); } catch { /* session-only preference */ }
@@ -628,8 +657,8 @@ export default function SafexHome() {
         </>}
 
         {page === 'reports' && <section className="page-panel">
-          <div className="page-heading"><div><span className="eyebrow">{currentSite?.name ?? T('SITE')}</span><h1>{T('reportsTitle')}</h1></div><button className="secondary-button" onClick={() => !isSingleSite && openSitePicker('reports')}>{T('changeSite')}</button></div>
-          <LoggedReports sites={displaySites} demoReports={demoMode ? DEMO_REPORTS : undefined} />
+          <div className="page-heading"><div><span className="eyebrow">{currentSite?.name ?? T('SITE')}</span><h1>{T('reportsTitle')}</h1></div>{!isSingleSite && <button type="button" className="secondary-button" onClick={() => openSitePicker('reports')}>{T('changeSite')}</button>}</div>
+          <LoggedReports sites={displaySites} selectedSiteId={siteId} demoReports={demoMode ? DEMO_REPORTS : undefined} />
         </section>}
 
         {page === 'alerts' && <FeedArchivePage kind="notices" siteName={currentSite?.name ?? T('Selected site')} items={siteFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
@@ -742,28 +771,35 @@ export default function SafexHome() {
                       <section><h4>{T('Immediate response')}</h4><ul>{alert.immediateActions.map((action) => <li key={action}>{action}</li>)}</ul></section>
                       <section><h4>{T('Corrective actions')}</h4><ul>{alert.correctiveActions.map((action) => <li key={action}>{action}</li>)}</ul></section>
                       <section><h4>{T('Lessons learned')}</h4><ul>{alert.lessonsLearned.map((lesson) => <li key={lesson}>{lesson}</li>)}</ul></section>
-                      {alert.attachment && expanded && <section className="safety-alert-file">
-                        <h4>{T('Incident file')}</h4>
-                        {alert.attachment.kind === 'image'
-                          ? <img
-                            className="safety-alert-file-image"
-                            src={`${alert.attachment.url}?inline=1`}
-                            alt={alert.attachment.name}
-                            loading="lazy"
-                            decoding="async"
-                          />
-                          : <div className="safety-alert-file-viewer">
-                            <iframe
-                              src={`${alert.attachment.url}?inline=1#navpanes=0&view=FitH`}
-                              title={alert.attachment.name}
+                      {alert.attachment && expanded && (() => {
+                        const inlineUrl = alert.attachment.kind === 'image'
+                          ? appendResourceQuery(alert.attachment.url, 'inline', '1')
+                          : appendResourceQuery(alert.attachment.url, 'inline', '1', 'navpanes=0&view=FitH');
+                        const downloadUrl = appendResourceQuery(alert.attachment.url, 'download', '1');
+                        if (!inlineUrl || !downloadUrl) return null;
+                        return <section className="safety-alert-file">
+                          <h4>{T('Incident file')}</h4>
+                          {alert.attachment.kind === 'image'
+                            ? <img
+                              className="safety-alert-file-image"
+                              src={inlineUrl}
+                              alt={alert.attachment.name}
                               loading="lazy"
+                              decoding="async"
                             />
-                          </div>}
-                        <div className="safety-alert-file-actions">
-                          <span>{alert.attachment.name}</span>
-                          <a href={`${alert.attachment.url}?download=1`} download>{T('Download')}</a>
-                        </div>
-                      </section>}
+                            : <div className="safety-alert-file-viewer">
+                              <iframe
+                                src={inlineUrl}
+                                title={alert.attachment.name}
+                                loading="lazy"
+                              />
+                            </div>}
+                          <div className="safety-alert-file-actions">
+                            <span>{alert.attachment.name}</span>
+                            <a href={downloadUrl} download>{T('Download')}</a>
+                          </div>
+                        </section>;
+                      })()}
                     </div>
                   </div>
                 </article>;
@@ -797,11 +833,11 @@ export default function SafexHome() {
       </div>}
 
       {reportType && currentSite && <ReportWorkflow key={`${reportType}-${currentSite.id}`} type={reportType} site={currentSite} directory={directory} language={language} onLanguageChange={setLanguage} voiceEnabled={APP_FEATURES.voiceReporting} onBack={backFromReport} onClose={() => setReportType(null)} onSubmit={submitReport} />}
-      {profileSearchOpen && <ProfileSearchDialog site={currentSite} companyName={companyName} directory={directory} directoryMode={directoryMode} directoryReason={directoryReason} employeeCount={employeeCount} autoEmployeeId={qrEmployeeId ?? undefined} onClose={() => { setProfileSearchOpen(false); setQrEmployeeId(null); }} />}
+      {profileSearchOpen && <ProfileSearchDialog site={currentSite} sites={displaySites} companyName={companyName} directory={directory} directoryMode={directoryMode} directoryReason={directoryReason} employeeCount={employeeCount} autoEmployeeId={qrEmployeeId ?? undefined} onClose={() => { setProfileSearchOpen(false); setQrEmployeeId(null); }} />}
       {moreInfoKind && <MoreInfoDialog kind={moreInfoKind} company={company} onClose={() => setMoreInfoKind(null)} onLogin={() => { setMoreInfoKind(null); setToast({ key: 'Login is unavailable in the UI preview.' }); }} />}
 
 
-      {notificationsOpen && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="notification-title"><div className="modal settings-modal"><div className="modal-header"><div><span className="eyebrow">{T('DEVICE SETTINGS')}</span><h2 id="notification-title">{T('Push notifications')}</h2></div><button className="close-button" onClick={() => setNotificationsOpen(false)} aria-label={T('Close')}><X /></button></div><p>{T('Choose which published updates reach this device. Avoid sending every draft or internal edit.')}</p><div className="notification-status"><Bell size={17} /><span>{T('Browser permission:')} <b>{T(notificationPermission)}</b></span></div><Preference label="Safety Alerts and urgent notices" detail="New published safety alerts" checked={pushPrefs.safety} onChange={() => setPref('safety')} /><Preference label="Circulars and published updates" detail="Notices, events and training" checked={pushPrefs.notices} onChange={() => setPref('notices')} /><Preference label="My report status" detail="Updates only for your reports" checked={pushPrefs.ownReports} onChange={() => setPref('ownReports')} /><Preference label="All vendor-site updates" detail="Opt in for this vendor only" checked={pushPrefs.allVendorSites} onChange={() => setPref('allVendorSites')} /><Preference label="Hide details on lock screen" detail="Recommended for privacy" checked={pushPrefs.hideLockScreen} onChange={() => setPref('hideLockScreen')} /><button className="primary-button full-button" onClick={requestPushPermission}>{T('Allow notifications on this device')}</button></div></div>}
+      {notificationsOpen && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="notification-title" onClick={(event) => { if (event.target === event.currentTarget) setNotificationsOpen(false); }}><div className="modal settings-modal"><div className="modal-header"><div><span className="eyebrow">{T('DEVICE SETTINGS')}</span><h2 id="notification-title">{T('Push notifications')}</h2></div><button type="button" className="close-button" onClick={() => setNotificationsOpen(false)} aria-label={T('Close')}><X /></button></div><p>{T('Choose which published updates reach this device. Avoid sending every draft or internal edit.')}</p><div className="notification-status"><Bell size={17} /><span>{T('Browser permission:')} <b>{T(notificationPermission)}</b></span></div><Preference label="Safety Alerts and urgent notices" detail="New published safety alerts" checked={pushPrefs.safety} onChange={() => setPref('safety')} /><Preference label="Circulars and published updates" detail="Notices, events and training" checked={pushPrefs.notices} onChange={() => setPref('notices')} /><Preference label="My report status" detail="Updates only for your reports" checked={pushPrefs.ownReports} onChange={() => setPref('ownReports')} /><Preference label="All vendor-site updates" detail="Opt in for this vendor only" checked={pushPrefs.allVendorSites} onChange={() => setPref('allVendorSites')} /><Preference label="Hide details on lock screen" detail="Recommended for privacy" checked={pushPrefs.hideLockScreen} onChange={() => setPref('hideLockScreen')} /><button type="button" className="primary-button full-button" onClick={requestPushPermission}>{T('Allow notifications on this device')}</button></div></div>}
 
       {sosOpen && <div
         className="overlay sos-overlay"
@@ -840,12 +876,12 @@ export default function SafexHome() {
 
 function NavItem({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
   const { T } = useI18n();
-  return <button className={`nav-item ${active ? 'active' : ''}`} onClick={onClick}>{icon}<span>{T(label)}</span></button>;
+  return <button type="button" className={`nav-item ${active ? 'active' : ''}`} aria-current={active ? 'page' : undefined} onClick={onClick}>{icon}<span>{T(label)}</span></button>;
 }
 
 function Preference({ label, detail, checked, onChange }: { label: string; detail: string; checked: boolean; onChange: () => void }) {
   const { T } = useI18n();
-  return <div className="preference-row"><div><b>{T(label)}</b><small>{T(detail)}</small></div><button className={`switch ${checked ? 'on' : ''}`} aria-pressed={checked} onClick={onChange}><span /></button></div>;
+  return <div className="preference-row"><div><b>{T(label)}</b><small>{T(detail)}</small></div><button type="button" className={`switch ${checked ? 'on' : ''}`} aria-label={T(label)} aria-pressed={checked} onClick={onChange}><span /></button></div>;
 }
 
 function PlusIcon() { return <span className="plus-symbol">+</span>; }

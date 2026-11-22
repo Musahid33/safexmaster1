@@ -20,6 +20,14 @@ export default function TrainingPortal({ site, catalog = null }: Props) {
   const [checkMessage, setCheckMessage] = useState('');
   const [employeeCode, setEmployeeCode] = useState('');
   useEffect(() => { setMaterial(null); setCheckMessage(''); setEmployeeCode(''); }, [site?.id]);
+  useEffect(() => {
+    if (!material) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMaterial(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [material]);
   const { videos, modules } = splitTrainingCatalog(catalog);
 
   function materialList(items: readonly TrainingMaterial[]) {
@@ -60,6 +68,6 @@ export default function TrainingPortal({ site, catalog = null }: Props) {
       <div className="training-privacy-note"><LockKeyhole size={16} aria-hidden="true" /><span>{T('Personal records will require secure verification when this feature is configured.')}</span></div>
     </section>
 
-    {material && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="training-material-title"><div className="modal training-material-modal"><div className="modal-header"><div><span className="eyebrow">{T('TRAINING VIEWER')} · {material.type === 'video' ? T('Video') : material.format.toUpperCase()}</span><h2 id="training-material-title">{material.title}</h2></div><button className="close-button" type="button" onClick={() => setMaterial(null)} aria-label={T('Close training viewer')}><X /></button></div>{material.description && <p>{material.description}</p>}<div className="training-material-placeholder"><FileText size={27} /><b>{T('Learning material preview')}</b><small>{T('Material viewing is not connected in this UI preview.')}</small></div><button className="secondary-button full-button" type="button" onClick={() => setMaterial(null)}>{T('Close')}</button></div></div>}
+    {material && <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="training-material-title" onClick={(event) => { if (event.target === event.currentTarget) setMaterial(null); }}><div className="modal training-material-modal"><div className="modal-header"><div><span className="eyebrow">{T('TRAINING VIEWER')} · {material.type === 'video' ? T('Video') : material.format.toUpperCase()}</span><h2 id="training-material-title">{material.title}</h2></div><button className="close-button" type="button" onClick={() => setMaterial(null)} aria-label={T('Close training viewer')}><X /></button></div>{material.description && <p>{material.description}</p>}<div className="training-material-placeholder"><FileText size={27} /><b>{T('Learning material preview')}</b><small>{T('Material viewing is not connected in this UI preview.')}</small></div><button className="secondary-button full-button" type="button" onClick={() => setMaterial(null)}>{T('Close')}</button></div></div>}
   </section>;
 }

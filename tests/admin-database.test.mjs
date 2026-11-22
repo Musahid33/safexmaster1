@@ -126,3 +126,29 @@ test('public portal hero stats are aggregated per selected site only', async () 
     await db.exec('reset role');
   } finally { await db.close(); }
 });
+
+test('status constraints reject invalid values and stats indexes exist', async () => {
+  const db = await freshDatabase();
+  try {
+    const { rows: [ids] } = await db.query('select gen_random_uuid() as company, gen_random_uuid() as site');
+    await db.query("insert into public.companies(id,name,slug,status) values ($1,'Company A','company-a','active')", [ids.company]);
+    await db.query("insert into public.locations(id,company_id,name) values ($1,$2,'Site A')", [ids.site, ids.company]);
+
+    await assert.rejects(
+      db.query("insert into public.reports(company_id,location_id,type,description,status) values ($1,$2,'Near Miss','desc','invalid')", [ids.company, ids.site]),
+      /reports_status_check/i
+    );
+    await assert.rejects(
+      db.query("insert into public.training(company_id,location_id,title,status) values ($1,$2,'Talk','Published')", [ids.company, ids.site]),
+      /training_status_check/i
+    );
+    const indexes = await db.query(
+      "select indexname from pg_indexes where schemaname = 'public' and indexname in ('reports_company_location_type_idx', 'training_company_location_status_idx') order by indexname"
+    );
+    assert.deepEqual(indexes.rows.map((r) => r.indexname), [
+      'reports_company_location_type_idx',
+      'training_company_location_status_idx'
+    ]);
+  } finally { await db.close(); }
+});
+

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { ArrowLeft, ChevronRight, ImagePlus, LockKeyhole, MapPin, Search, Send, X } from 'lucide-react';
 import type { EmployeeDirectory } from '@/lib/employee-directory';
 import type { Employee, Language, ReportType, Site } from '@/lib/types';
@@ -126,6 +126,7 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
   const [immediateAction, setImmediateAction] = useState('');
   const [severity, setSeverity] = useState<Severity | ''>('');
   const [photo, setPhoto] = useState<File | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -170,6 +171,14 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
   useEffect(() => {
     setIncidentAt(localDateTime());
   }, []);
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !submitting) onClose();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [onClose, submitting]);
 
   const isIncident = type === 'Near Miss' || type === 'Hazard' || type === 'Unsafe Condition' || type === 'Unsafe Act' || type === 'Safety Observation' || type === 'Speak Up';
   const showLocation = isIncident;
@@ -260,12 +269,14 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
     }
     setSubmitting(true);
     try {
+      const parsedIncidentDate = new Date(incidentAt);
+      const normalizedIncidentAt = Number.isNaN(parsedIncidentDate.getTime()) ? incidentAt : parsedIncidentDate.toISOString();
       await onSubmit({
         type,
         category,
         area: location.trim(),
         department: department.trim() || null,
-        incidentAt,
+        incidentAt: normalizedIncidentAt,
         description: description.trim(),
         immediateAction: immediateAction.trim(),
         severity: (severity || null) as Severity | null,
@@ -357,8 +368,8 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
           onError={setError}
         />
 
-        <label className="upload-button report-upload"><ImagePlus size={17} /><span>{photo?.name ?? T('Attach photo (optional)')}</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} /><small>{T('Image only · maximum 12 MB')}</small></label>
-        {photo && <div className="photo-file-row"><span><ImagePlus size={14} />{photo.name}</span><button type="button" onClick={() => setPhoto(null)} aria-label={T('Remove photo')}>{T('Remove')}</button></div>}
+        <label className="upload-button report-upload"><ImagePlus size={17} /><span>{photo?.name ?? T('Attach photo (optional)')}</span><input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} /><small>{T('Image only · maximum 12 MB')}</small></label>
+        {photo && <div className="photo-file-row"><span><ImagePlus size={14} />{photo.name}</span><button type="button" onClick={() => { setPhoto(null); if (photoInputRef.current) photoInputRef.current.value = ''; }} aria-label={T('Remove photo')}>{T('Remove')}</button></div>}
 
         {error && <div className="inline-notice warning" role="alert">{T(error)}</div>}
         <div className="form-footer report-submit-footer"><button className="primary-button" type="submit" disabled={submitting}><Send size={16} /> {T(submitting ? 'Saving report…' : 'Save report')}</button></div>

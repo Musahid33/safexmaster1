@@ -120,12 +120,15 @@ export default function VoiceTextArea({
   /** Consecutive failed `start()` calls; a transient Android error must not stop the dictation. */
   const restartFailuresRef = useRef(0);
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
   const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
   const languageRef = useRef(language);
-  languageRef.current = language;
   const spokenRef = useRef<SpokenLang>('auto');
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+    onErrorRef.current = onError;
+    languageRef.current = language;
+  }, [onChange, onError, language]);
 
   const setCurrentPhase = useCallback((next: Phase) => {
     phaseRef.current = next;
@@ -428,10 +431,11 @@ export default function VoiceTextArea({
   useEffect(() => () => {
     noRestartRef.current = true;
     abortRecognition();
+    stopWatchdog();
     if (tickRef.current !== null) window.clearInterval(tickRef.current);
     if (restartRef.current !== null) window.clearTimeout(restartRef.current);
     if (silenceRef.current !== null) window.clearTimeout(silenceRef.current);
-  }, [abortRecognition]);
+  }, [abortRecognition, stopWatchdog]);
 
   function resetTranscript() {
     committedRef.current = '';

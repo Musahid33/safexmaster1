@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   title: appName,
   description: 'Site-aware safety reporting and alerts',
   applicationName: appName,
+  openGraph: {
+    title: appName,
+    description: 'Site-aware safety reporting and alerts',
+  },
   manifest: '/manifest.webmanifest',
   appleWebApp: { capable: true, title: appName, statusBarStyle: 'black-translucent' },
   icons: {

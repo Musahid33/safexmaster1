@@ -6,10 +6,11 @@ import type { EmployeeDirectory } from '@/lib/employee-directory';
 import type { PrivateAccessGateway } from '@/lib/private-access';
 import type { DirectoryUnavailableReason, Employee, Site } from '@/lib/types';
 import { useI18n } from './I18nProvider';
-import EmployeePassport from './EmployeePassport';
+import EmployeePassport, { type PassportHistory } from './EmployeePassport';
 
 type Props = {
   site: Site | null;
+  sites?: readonly Site[];
   companyName?: string | null;
   directory: EmployeeDirectory;
   /** Which source answered, so a test never confuses "not found" with "wrong source". */
@@ -27,6 +28,7 @@ type Props = {
   autoEmployeeId?: string;
   /** Passed through to the passport so the footer QR points back to this entry path. */
   profileQrPath?: string;
+  history?: PassportHistory;
 };
 
 const SOURCE_LABEL: Record<'supabase' | 'sheet' | 'unavailable', string> = {
@@ -49,7 +51,7 @@ const UNAVAILABLE_HINT: Record<DirectoryUnavailableReason, string> = {
 };
 type UiMessage = { key: string; params?: Record<string, string | number> };
 
-export default function ProfileSearchDialog({ site, companyName, directory, directoryMode, directoryReason, employeeCount = 0, onClose, privateAccess = null, autoEmployeeId, profileQrPath }: Props) {
+export default function ProfileSearchDialog({ site, sites, companyName, directory, directoryMode, directoryReason, employeeCount = 0, onClose, privateAccess = null, autoEmployeeId, profileQrPath, history }: Props) {
   const { T } = useI18n();
   const [employeeId, setEmployeeId] = useState('');
   const [result, setResult] = useState<Employee | null>(null);
@@ -95,19 +97,32 @@ export default function ProfileSearchDialog({ site, companyName, directory, dire
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoEmployeeId, lookupUnavailable]);
 
+  useEffect(() => {
+    if (result) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [result, onClose]);
+
   if (result) {
+    // Company-wide lookups can match an employee from another site; resolve their actual site.
+    const employeeSite = sites?.find((candidate) => candidate.id === result.siteId)
+      ?? (site?.id === result.siteId ? site : null);
     return <EmployeePassport
       employee={result}
-      site={site}
+      site={employeeSite}
       companyName={companyName}
       onBack={() => { setResult(null); setEmployeeId(''); setMessage(null); }}
       onClose={onClose}
+      history={history}
       privateAccess={privateAccess}
       profileQrPath={profileQrPath}
     />;
   }
 
-  return <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="profile-search-title"><div className="modal profile-search-modal">
+  return <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="profile-search-title" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}><div className="modal profile-search-modal">
     <div className="modal-header"><div><span className="eyebrow">{T('EMPLOYEE DIRECTORY')}</span><h2 id="profile-search-title">{T('Search Employee Profile')}</h2></div><button className="close-button" type="button" onClick={onClose} aria-label={T('Close employee profile')}><X /></button></div>
     <form className="profile-search-form" onSubmit={search}><label htmlFor="profile-search-code" className="field-label">{T('Employee ID')}</label><div className="search-box"><Search size={17} /><input id="profile-search-code" value={employeeId} onChange={(event) => { setEmployeeId(event.target.value.toUpperCase()); setMessage(null); }} placeholder={lookupUnavailable ? T('Employee master not connected') : T('Enter Employee ID')} autoComplete="off" required /></div><button type="submit" className="primary-button full-button" disabled={searching || lookupUnavailable}>{T(searching ? 'Searching…' : lookupUnavailable ? 'Search unavailable' : 'Search Employees')}</button></form>
     {message && <div className="inline-notice warning" role="status">{T(message.key, message.params)}</div>}
