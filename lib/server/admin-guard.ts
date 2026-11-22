@@ -2,6 +2,7 @@ import 'server-only';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { mayAccessAdmin, type AdminAccess } from '@/lib/admin-access';
+import { ADMIN_DEMO_COOKIE, isAdminDemoEnabled } from '@/lib/admin-demo';
 import { sessionClient } from './supabase-auth';
 
 export const ACTIVE_COMPANY_COOKIE = 'safetyos-company-id';
@@ -21,6 +22,14 @@ export type VerifiedAdminContext = {
  * rather than relying solely on proxy/middleware checks.
  */
 export async function requireAdminAccess(): Promise<VerifiedAdminContext> {
+  // Preview-only demo sign-in: lets the console UI be explored without a database.
+  // Compiled out of any production deployment (requires ADMIN_DEMO_PASSWORD + non-production NODE_ENV).
+  if (isAdminDemoEnabled()) {
+    const store = await cookies();
+    if (store.get(ADMIN_DEMO_COOKIE)?.value === '1') {
+      return { userId: 'demo-admin', companyIds: [], activeCompanyId: null };
+    }
+  }
   try {
     const client = await sessionClient();
     const { data: identity, error: userError } = await client.auth.getUser();

@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { ACTIVE_COMPANY_COOKIE } from '@/lib/server/admin-guard';
 import { privilegedClient, sessionClient } from '@/lib/server/supabase-auth';
 import { mayAccessAdmin, validAdminLogin } from '@/lib/admin-access';
+import { ADMIN_DEMO_COOKIE, validAdminDemoLogin } from '@/lib/admin-demo';
 
 export type LoginState = { error: string };
 const failure = { error: 'Unable to sign in. Check your details or try again later.' };
@@ -24,8 +25,17 @@ async function limit(identifier: string) {
 }
 async function login(form: FormData): Promise<LoginState> {
   const username = normalize(form.get('username'));
-  const slug = normalize(form.get('company'));
+  // Company slug comes from the app context (worker portal passes its own) or the
+  // deployment's COMPANY_PORTAL_SLUG — the standalone admin login never asks for it.
+  const slug = normalize(form.get('company')) || (process.env.COMPANY_PORTAL_SLUG ?? '').trim().toLowerCase();
   const password = form.get('password');
+  // Preview-only demo sign-in (disabled in production builds entirely).
+  if (validAdminDemoLogin(username, password)) {
+    const store = await cookies();
+    store.set(ADMIN_DEMO_COOKIE, '1', { httpOnly: true, sameSite: 'lax', secure: false, path: '/' });
+    redirect('/company-admin/dashboard');
+  }
+  if (!slug) return unavailable;
   if (!validAdminLogin(username, slug, password) || typeof password !== 'string') return failure;
   let success = false;
   try {
@@ -67,6 +77,7 @@ export async function signOut() {
   try {
     const store = await cookies();
     store.delete(ACTIVE_COMPANY_COOKIE);
+    store.delete(ADMIN_DEMO_COOKIE);
     const projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (projectUrl) {
       const projectRef = new URL(projectUrl).hostname.split('.')[0];

@@ -1,4 +1,37 @@
+import type { Metadata } from 'next';
+import { HardHat, GraduationCap, FileText, BarChart3 } from 'lucide-react';
 import { LoginForm } from '@/app/admin-auth/LoginForm';
-import Link from 'next/link';
-import { ArrowLeft, ArrowRight, CheckCircle2, LockKeyhole, ShieldCheck, Sparkles } from 'lucide-react';
-export default function CompanyLogin() { return <main className="owner-login"><section className="owner-login-aside"><Link className="owner-login-brand" href="/company-admin/dashboard"><img src="/icon-192.png" alt="" /><span>SafetyOS<span>.</span><small>COMPANY CONSOLE</small></span></Link><div className="owner-login-message"><span className="owner-login-tag"><Sparkles size={14} /> COMPANY ADMIN WORKSPACE</span><h1>Safety starts<br />with your people.</h1><p>Manage your company’s safety workspace, all in one place.</p><div className="owner-login-points"><span><CheckCircle2 size={18} /> Bring locations and people together</span><span><CheckCircle2 size={18} /> Keep safety activity in view</span><span><CheckCircle2 size={18} /> Support a safer workplace</span></div></div><div className="owner-login-orb"><ShieldCheck size={58} /></div><div className="owner-login-aside-footer">© SafetyOS <span>Built for safer workplaces.</span></div></section><section className="owner-login-content"><div className="owner-login-box"><Link href="/company-admin/dashboard" className="owner-login-back"><ArrowLeft size={16} /> Back to workspace</Link><span className="owner-login-icon"><ShieldCheck size={24} /></span><div className="owner-eyebrow">COMPANY ADMIN ACCESS</div><h2>Welcome back</h2><p>Sign in to your company workspace.</p><LoginForm /><div className="owner-login-help">Need help accessing your account? <span>Contact support</span></div></div><div className="owner-login-bottom"><span>SafetyOS Company Console</span><span>UI preview</span></div></section></main>; }
+import './admin-login.css';
+
+export const metadata = { title: 'Company Admin Sign In' };
+
+export default function CompanyLogin() {
+  // This portal serves exactly one company, configured by the deployment.
+  const connected = Boolean(process.env.COMPANY_PORTAL_SLUG?.trim());
+  const demoEnabled = Boolean(process.env.ADMIN_DEMO_PASSWORD);
+  return <main className="admin-login">
+    <div className="login-page-shell">
+      <div className="login-layout">
+        <div className="login-visual">
+          <div className="login-visual-content">
+            <h1>Safety First,<br />Always.</h1>
+            <span className="login-accent-line" aria-hidden="true" />
+            <ul className="login-feature-list">
+              <li><HardHat size={23} aria-hidden="true" />Report Hazards</li>
+              <li><GraduationCap size={23} aria-hidden="true" />Complete Training</li>
+              <li><FileText size={23} aria-hidden="true" />Access Safety Documents</li>
+              <li><BarChart3 size={23} aria-hidden="true" />Track Safety Performance</li>
+            </ul>
+          </div>
+        </div>
+        <div className="login-form-area">
+          <div className="account-form-card">
+            <div className="account-card-body">
+              <LoginForm connected={connected} demoEnabled={demoEnabled} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>;
+}
