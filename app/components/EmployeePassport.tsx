@@ -23,7 +23,7 @@ type Category =
  * `tag` carries the sub-type for merged cards (UC / UA / Safe Observation inside Safety
  * Observation; Feedback vs Suggestion; Grievance vs Speak Up) so one table holds them all.
  */
-type HistoryRow = { date: string; title: string; detail: string; status: string; severity?: string; tag?: string };
+type HistoryRow = { id?: string; date: string; isoDate?: string; title: string; detail: string; status: string; severity?: string; tag?: string };
 export type PassportHistory = Partial<Record<Category, HistoryRow[]>>;
 
 type CardConfig = {
@@ -224,7 +224,7 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
     .filter((row) => (filter === 'All statuses' || row.status === filter)
       && `${row.date} ${row.title} ${row.detail} ${row.tag ?? ''} ${row.status}`.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
-      const compare = (Date.parse(a.date) || 0) - (Date.parse(b.date) || 0);
+      const compare = (Date.parse(a.isoDate ?? a.date) || 0) - (Date.parse(b.isoDate ?? b.date) || 0);
       return sort === 'Oldest first' ? compare : -compare;
     });
   const pageCount = Math.max(1, Math.ceil(filtered.length / 8));
@@ -270,22 +270,22 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
   async function verifyOtp() {
     if (!unlock || unlock.busy || !privateAccess) return;
     if (!validOtpCode(unlock.otp)) {
-      setUnlock({ ...unlock, error: 'Enter the 6-digit OTP sent to your mobile.' });
+      setUnlock((current) => current && { ...current, error: 'Enter the 6-digit OTP sent to your mobile.' });
       return;
     }
-    setUnlock({ ...unlock, busy: true, error: null });
+    const { mobile, otp, category } = unlock;
+    setUnlock((current) => current && { ...current, busy: true, error: null });
     let ok = false;
     try {
-      ok = await privateAccess.verifyOtp(unlock.mobile, unlock.otp.trim());
+      ok = await privateAccess.verifyOtp(mobile, otp.trim());
     } catch {
-      setUnlock({ ...unlock, busy: false, error: 'Verification failed. Try again in a moment.' });
+      setUnlock((current) => current && { ...current, busy: false, error: 'Verification failed. Try again in a moment.' });
       return;
     }
     if (!ok) {
-      setUnlock({ ...unlock, busy: false, otp: '', error: 'Incorrect or expired OTP. Check the SMS and try again.' });
+      setUnlock((current) => current && { ...current, busy: false, otp: '', error: 'Incorrect or expired OTP. Check the SMS and try again.' });
       return;
     }
-    const category = unlock.category;
     setUnlock(null);
     openHistory(category);
   }
@@ -451,7 +451,7 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
                     <button type="button" className="pp-link" onClick={() => openHistory('training')}>View all <ChevronRight size={12} /></button>
                   </div>
                   <div className="pp-training-list">
-                    {trainingRows.length ? trainingRows.map((row, index) => <div className="pp-training-row" key={`${row.date}-${index}`}>
+                    {trainingRows.length ? trainingRows.map((row, index) => <div className="pp-training-row" key={row.id ?? `${row.date}-${row.title}-${index}`}>
                       <span className="pp-training-icon"><GraduationCap size={16} /></span>
                       <div><b>{row.title}</b><small>{row.date}</small></div>
                       <span className="pp-status">{row.status}</span>
@@ -568,7 +568,7 @@ export default function EmployeePassport({ employee, site, companyName, onBack, 
         <div className="passport-table-scroll">
           <table>
             <thead><tr>{active.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
-            <tbody>{visible.length ? visible.map((row, index) => <tr key={`${row.date}-${index}`}>
+            <tbody>{visible.length ? visible.map((row, index) => <tr key={row.id ?? `${row.date}-${row.title}-${index}`}>
               <td>{row.date}</td><td>{row.title}</td><td>{row.detail}</td>
               {active.tagHeader && <td>{row.tag ? <span className="passport-tag">{row.tag}</span> : '—'}</td>}
               {active.severity && <td>{row.severity || '—'}</td>}

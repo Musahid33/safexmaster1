@@ -5,11 +5,12 @@ import {
   LockKeyhole, LogIn, Mail, MapPin, Palette, Phone, ShieldCheck, Smartphone, UserRound, X
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useActionState, useState, type FormEvent } from 'react';
+import { useActionState, useEffect, useState, type FormEvent } from 'react';
 import { companyLogin } from '@/app/admin-auth/actions';
 import type { TenantBranding } from '@/lib/types';
 import { APP_VERSION, SAFEX_WEBSITE_URL } from '@/lib/app-info';
 import { portalName } from '@/lib/portal-branding';
+import { safeExternalUrl } from '@/lib/safe-url';
 import { useI18n } from './I18nProvider';
 
 export type MoreInfoKind = 'privacy' | 'terms' | 'support' | 'change-password' | 'account-settings';
@@ -33,16 +34,7 @@ type MoreOptionCardProps = {
   onClick: () => void;
 };
 
-function safeExternalUrl(value: string | null | undefined): string | null {
-  const trimmed = value?.trim();
-  if (!trimmed) return null;
-  try {
-    const url = new URL(/^[a-z][a-z\d+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`);
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
-  } catch {
-    return null;
-  }
-}
+
 
 function emailHref(value: string | null | undefined): string | null {
   const email = value?.trim();
@@ -292,8 +284,15 @@ export function MoreInfoDialog({ kind, company, onClose, onLogin }: {
       : kind === 'support' ? T('Contact Support')
         : kind === 'change-password' ? T('Change Password')
           : T('Account Settings');
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [onClose]);
   const hasSupport = Boolean(company.supportEmail?.trim() || company.supportMobile?.trim());
-  return <div className="overlay more-info-overlay" role="dialog" aria-modal="true" aria-labelledby="more-info-title">
+  return <div className="overlay more-info-overlay" role="dialog" aria-modal="true" aria-labelledby="more-info-title" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <div className="modal more-info-modal">
       <div className="modal-header"><div><span className="eyebrow">{T('MORE · INFORMATION')}</span><h2 id="more-info-title">{title}</h2></div><button type="button" className="close-button" onClick={onClose} aria-label={T('Close {title}', { title })}><X size={18} /></button></div>
       {kind === 'privacy' && <div className="more-info-copy privacy-policy-copy">

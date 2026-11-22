@@ -1,9 +1,13 @@
 import { notFound } from 'next/navigation';
-import { getPage, pages } from '../config';
+import { requireAdminAccess } from '@/lib/server/admin-guard';
+import { getPage } from '../config';
 import { AdminPage } from '../components/AdminPage';
 
-export function generateStaticParams() { return pages.map(({ slug }) => ({ section: slug })); }
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function SectionPage({ params }: { params: Promise<{ section: string }> }) {
+  await requireAdminAccess('owner');
   const { section } = await params;
   const page = getPage(section);
   if (!page) notFound();

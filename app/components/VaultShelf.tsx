@@ -8,6 +8,7 @@ import {
 import { LANGUAGE_LOCALE } from '@/lib/i18n';
 import { VAULT_CATEGORIES } from '@/lib/content/catalog';
 import { registerDate, registerValidity, registerToday } from '@/lib/content/register';
+import { appendResourceQuery, safeExternalUrl, safeResourceUrl } from '@/lib/safe-url';
 import { useI18n } from './I18nProvider';
 import { DOCUMENT_VAULT_CATEGORIES, type VaultCategoryId, type VaultDocument } from './DocumentVault';
 
@@ -71,11 +72,15 @@ export function VaultShelf({ categoryId, siteName, documents = [], onBack }: {
   const open = shelf.find((document) => document.id === openId) ?? null;
   const today = registerToday();
   const count = new Intl.NumberFormat(locale).format(shelf.length);
-  const viewerKind = !open?.fileUrl || open.external
+  const openFileUrl = open?.external ? safeExternalUrl(open.fileUrl) : safeResourceUrl(open?.fileUrl);
+  const inlinePdfUrl = open && !open.external ? appendResourceQuery(open.fileUrl, 'inline', '1', 'navpanes=0&view=FitH') : null;
+  const inlineImageUrl = open && !open.external ? appendResourceQuery(open.fileUrl, 'inline', '1') : null;
+  const downloadUrl = open && !open.external ? appendResourceQuery(open.fileUrl, 'download', '1') : null;
+  const viewerKind = !openFileUrl || open?.external
     ? 'none'
-    : open.mimeType === 'application/pdf'
+    : open?.mimeType === 'application/pdf'
       ? 'pdf'
-      : open.mimeType?.startsWith('image/')
+      : open?.mimeType?.startsWith('image/')
         ? 'image'
         : 'none';
 
@@ -204,33 +209,33 @@ export function VaultShelf({ categoryId, siteName, documents = [], onBack }: {
             <span className={`vault-status ${registerValidity(open.validUpto, today).key}`}>{T(registerValidity(open.validUpto, today).label)}</span>
           </div>
         </div>
-        {open.fileUrl && !open.external && <div className="vault-detail-actions">
+        {downloadUrl && <div className="vault-detail-actions">
           <button
             className="secondary-button"
             type="button"
             onClick={printDocument}
             disabled={viewerKind === 'none'}
           ><Printer size={16} /> {T('Print')}</button>
-          <a className="primary-button" href={`${open.fileUrl}?download=1`} download><Download size={16} /> {T('Download')}</a>
+          <a className="primary-button" href={downloadUrl} download><Download size={16} /> {T('Download')}</a>
         </div>}
       </div>
 
-      {viewerKind === 'pdf' && <div className="vault-viewer">
+      {viewerKind === 'pdf' && inlinePdfUrl && <div className="vault-viewer">
         <iframe
           ref={viewerRef}
           key={open.id}
-          src={`${open.fileUrl}?inline=1#navpanes=0&view=FitH`}
+          src={inlinePdfUrl}
           title={open.title}
         />
       </div>}
-      {viewerKind === 'image' && <div className="vault-viewer is-image">
+      {viewerKind === 'image' && inlineImageUrl && <div className="vault-viewer is-image">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`${open.fileUrl}?inline=1`} alt={open.title} />
+        <img src={inlineImageUrl} alt={open.title} />
       </div>}
-      {open.fileUrl && open.external && <a className="vault-detail-link" href={open.fileUrl} target="_blank" rel="noreferrer">
+      {openFileUrl && open.external && <a className="vault-detail-link" href={openFileUrl} target="_blank" rel="noopener noreferrer">
         <ExternalLink size={16} /> {T('Open the linked document')}
       </a>}
-      {!open.fileUrl && <p className="vault-detail-note">{T('No file is attached to this document.')}</p>}
+      {!openFileUrl && <p className="vault-detail-note">{T('No file is attached to this document.')}</p>}
     </div>}
   </section>;
 }

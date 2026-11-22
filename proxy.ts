@@ -22,7 +22,9 @@ export async function proxy(request: NextRequest) {
     if (userError || !identity.user) return deny();
     const { data, error } = await client.rpc('current_admin_access');
     const access = Array.isArray(data) ? data[0] : null;
-    if (error || !access || !mayAccessAdmin(owner ? 'owner' : 'company', access)) return deny();
+    const rawCompany = request.cookies.get('safetyos-company-id')?.value?.trim() ?? '';
+    const activeCompanyId = !owner && rawCompany ? rawCompany : undefined;
+    if (error || !access || !mayAccessAdmin(owner ? 'owner' : 'company', access, activeCompanyId)) return deny();
     return response;
   } catch { return deny(); }
 }

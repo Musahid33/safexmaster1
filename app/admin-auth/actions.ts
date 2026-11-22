@@ -2,6 +2,7 @@
 import { createHmac } from 'node:crypto';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import { ACTIVE_COMPANY_COOKIE } from '@/lib/server/admin-guard';
 import { privilegedClient, sessionClient } from '@/lib/server/supabase-auth';
 import { mayAccessAdmin, validAdminLogin } from '@/lib/admin-access';
 
@@ -52,6 +53,17 @@ async function login(kind: 'owner' | 'company', form: FormData): Promise<LoginSt
       await supabase.auth.signOut();
       return failure;
     }
+    const store = await cookies();
+    if (kind === 'company' && companyId) {
+      store.set(ACTIVE_COMPANY_COOKIE, companyId, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/'
+      });
+    } else {
+      store.delete(ACTIVE_COMPANY_COOKIE);
+    }
     success = true;
   } catch { return unavailable; }
   if (success) redirect(kind === 'owner' ? '/super-admin/dashboard' : '/company-admin/dashboard');
@@ -62,12 +74,13 @@ export async function companyLogin(_previous: LoginState, form: FormData) { retu
 export async function signOut(form: FormData) {
   const destination = form.get('portal') === 'owner' ? '/super-admin/login' : '/company-admin/login';
   try { const client = await sessionClient(); await client.auth.signOut(); } catch { /* Clear local cookies even if the provider is unavailable. */ }
-  const projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   try {
+    const store = await cookies();
+    store.delete(ACTIVE_COMPANY_COOKIE);
+    const projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     if (projectUrl) {
       const projectRef = new URL(projectUrl).hostname.split('.')[0];
       if (/^[a-z0-9]+$/.test(projectRef)) {
-        const store = await cookies();
         const prefix = `sb-${projectRef}-auth-token`;
         for (const cookie of store.getAll()) if (cookie.name === prefix || cookie.name.startsWith(`${prefix}.`)) store.delete(cookie.name);
       }

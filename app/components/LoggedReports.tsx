@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Filter, ImagePlus, Loader2, RefreshCw, Search, X } from 'lucide-react';
+import { safeResourceUrl } from '@/lib/safe-url';
 import type { ReportStatus, ReportType, Site } from '@/lib/types';
+import { useI18n } from './I18nProvider';
 import './logged-reports.css';
 
 /**
@@ -64,10 +66,10 @@ function formatDay(value: string | null | undefined): string {
   return new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
 }
 
-export default function LoggedReports({ sites = [], demoReports }: { sites?: Site[]; demoReports?: readonly LoggedReport[] }) {
-  // '' means All locations: the feed opens company-wide by default; the little dropdown
-  // beside the heading narrows it to one site when you want a single location.
-  const [siteChoice, setSiteChoice] = useState('');
+export default function LoggedReports({ sites = [], selectedSiteId = '', demoReports }: { sites?: Site[]; selectedSiteId?: string; demoReports?: readonly LoggedReport[] }) {
+  const { T } = useI18n();
+  // '' means All locations; sync when the parent page changes the active site.
+  const [siteChoice, setSiteChoice] = useState(selectedSiteId);
   const [feed, setFeed] = useState<Feed>({ reports: [], total: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,19 +79,28 @@ export default function LoggedReports({ sites = [], demoReports }: { sites?: Sit
   const [typeFilter, setTypeFilter] = useState<'All' | ReportType>('All');
   const [selected, setSelected] = useState<LoggedReport | null>(null);
   const [photoBroken, setPhotoBroken] = useState(false);
-  const load = useCallback(async (_offset = 0, _options: { quiet?: boolean } = {}) => {
+
+  useEffect(() => {
+    setSiteChoice(selectedSiteId);
+  }, [selectedSiteId]);
+
+  const load = useCallback(async (offset = 0, _options: { quiet?: boolean } = {}) => {
     if (demoReports) {
-      const list = demoReports.filter((report) => !siteChoice || report.siteId === siteChoice);
-      setFeed({ reports: list, total: list.length });
+      const filteredList = demoReports.filter((report) => !siteChoice || report.siteId === siteChoice);
+      const pageSlice = filteredList.slice(offset, offset + PAGE_SIZE);
+      setFeed((current) => ({
+        reports: offset > 0 ? [...current.reports, ...pageSlice] : pageSlice,
+        total: filteredList.length
+      }));
       setError('');
       return;
     }
-    setFeed({ reports: [], total: 0 });
+    if (offset === 0) setFeed({ reports: [], total: 0 });
     setError('Reports are not connected in the UI preview.');
   }, [demoReports, siteChoice]);
 
   useEffect(() => {
-    void load().finally(() => setLoading(false));
+    void load(0).finally(() => setLoading(false));
   }, [load]);
 
   // A cached photo link is signed for ten minutes; if it has expired, say so instead of
@@ -138,10 +149,11 @@ export default function LoggedReports({ sites = [], demoReports }: { sites?: Sit
   }, [feed.reports, typeFilter, query]);
 
   const counts = useMemo(() => ({
-    open: feed.reports.filter((report) => report.status === 'Open').length,
-    progress: feed.reports.filter((report) => report.status === 'In Progress').length,
-    closed: feed.reports.filter((report) => report.status === 'Closed').length
-  }), [feed.reports]);
+    open: visible.filter((report) => report.status === 'Open').length,
+    progress: visible.filter((report) => report.status === 'In Progress').length,
+    closed: visible.filter((report) => report.status === 'Closed').length
+  }), [visible]);
+  const selectedPhotoUrl = safeResourceUrl(selected?.photoUrl);
 
   return <section className="mlr-card">
     <div className="mlr-head">
@@ -187,31 +199,31 @@ export default function LoggedReports({ sites = [], demoReports }: { sites?: Sit
     </div>
 
     {!loading && !error && <div className="mlr-counts">
-      <span>{feed.total} logged</span>
+      <span>{visible.length === feed.total ? `${feed.total} logged` : `${visible.length} of ${feed.total} logged`}</span>
       <span className="is-open">{counts.open} open</span>
       <span className="is-progress">{counts.progress} in progress</span>
       <span className="is-closed">{counts.closed} closed</span>
     </div>}
 
     {error && <div className="mlr-error" role="alert">
-      <span>{error}</span>
-      <button className="mlr-ghost" type="button" onClick={() => void refresh()}>Try again</button>
+      <span>{T(error)}</span>
+      <button className="mlr-ghost" type="button" onClick={() => void refresh()}>{T('Try again')}</button>
     </div>}
 
-    {loading && <div className="mlr-loading"><Loader2 size={18} className="mlr-spin" /> Loading reports…</div>}
+    {loading && <div className="mlr-loading"><Loader2 size={18} className="mlr-spin" /> {T('Loading reports…')}</div>}
 
     {!loading && !error && feed.reports.length === 0 && <div className="mlr-empty">
       <ClipboardList size={26} aria-hidden="true" />
-      <b>No reports logged yet</b>
+      <b>{T('No reports logged yet')}</b>
       <span>{siteChoice
-        ? `${sites.find((s) => s.id === siteChoice)?.name ?? 'Is location'} me abhi koi report database me nahi hai.`
-        : 'Kisi bhi location me abhi koi report database me nahi hai.'}</span>
+        ? T('No reports have been logged for {site} yet.', { site: sites.find((s) => s.id === siteChoice)?.name ?? T('this site') })
+        : T('No reports have been logged across any location yet.')}</span>
     </div>}
 
     {!loading && !error && feed.reports.length > 0 && visible.length === 0 && <div className="mlr-empty">
       <Search size={24} aria-hidden="true" />
-      <b>No report matches this filter</b>
-      <span>Search ya type filter badal kar dobara dekho.</span>
+      <b>{T('No report matches this filter')}</b>
+      <span>{T('Try another filter or report a safety concern.')}</span>
     </div>}
 
     {visible.length > 0 && <ul className="mlr-list">
@@ -293,17 +305,17 @@ export default function LoggedReports({ sites = [], demoReports }: { sites?: Sit
 
         <div className="mlr-modal-section">
           <b>Photo</b>
-          {selected.photoUrl && !photoBroken
-            ? <a href={selected.photoUrl} target="_blank" rel="noreferrer noopener" className="mlr-modal-photo-link">
+          {selectedPhotoUrl && !photoBroken
+            ? <a href={selectedPhotoUrl} target="_blank" rel="noreferrer noopener" className="mlr-modal-photo-link">
               <img
-                src={selected.photoUrl}
+                src={selectedPhotoUrl}
                 alt={`Photo attached to ${selected.reference}`}
                 className="mlr-modal-photo"
                 loading="lazy"
                 onError={() => setPhotoBroken(true)}
               />
             </a>
-            : <p className="mlr-modal-nophoto">{selected.photoUrl ? 'Photo link expired. Tap Refresh to load it again.' : 'No photo attached to this report.'}</p>}
+            : <p className="mlr-modal-nophoto">{selectedPhotoUrl ? 'Photo link expired. Tap Refresh to load it again.' : 'No photo attached to this report.'}</p>}
         </div>
       </div>
     </div>}

@@ -1,8 +1,10 @@
 'use client';
 
-import { ArrowLeft, BellRing, CalendarDays, ChevronRight, Clock3, ExternalLink, FileText, MapPin, X, type LucideIcon } from 'lucide-react';
-import { formatHomeFeedDate, formatHomeFeedTime, type HomeFeedItem, type HomeFeedKind } from '@/lib/home-content';
+import { useEffect, useState } from 'react';
+import { ArrowLeft, BellRing, CalendarDays, Check, ChevronRight, Clock3, ExternalLink, FileText, MapPin, Share2, X, type LucideIcon } from 'lucide-react';
+import { buildHomeFeedShareData, formatHomeFeedDate, formatHomeFeedTime, type HomeFeedItem, type HomeFeedKind } from '@/lib/home-content';
 import { LANGUAGE_LOCALE } from '@/lib/i18n';
+import { safeResourceUrl } from '@/lib/safe-url';
 import { useI18n } from './I18nProvider';
 
 type ArchiveConfig = { eyebrow: string; title: string; description: string };
@@ -75,7 +77,61 @@ export function HomeFeedDetailDialog({ item, siteName, onClose }: { item: HomeFe
   const { language, T } = useI18n();
   const locale = LANGUAGE_LOCALE[language];
   const Icon = item.type === 'Event' ? CalendarDays : item.type === 'Notice' ? BellRing : FileText;
-  return <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="feed-detail-title">
+  const attachmentUrl = safeResourceUrl(item.attachmentUrl);
+  const [shareState, setShareState] = useState<'idle' | 'shared' | 'copied' | 'unsupported'>('idle');
+  const [sharing, setSharing] = useState(false);
+
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (shareState === 'idle') return;
+    const timer = window.setTimeout(() => setShareState('idle'), 2800);
+    return () => window.clearTimeout(timer);
+  }, [shareState]);
+
+  async function handleShare() {
+    if (sharing) return;
+    setSharing(true);
+    const payload = buildHomeFeedShareData(item, siteName, locale, window.location.href);
+    const fallbackText = payload.url ? `${payload.text}\n${payload.url}` : payload.text;
+
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        await navigator.share(payload);
+        setShareState('shared');
+        return;
+      }
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(fallbackText);
+        setShareState('copied');
+        return;
+      }
+      setShareState('unsupported');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      if (error && typeof error === 'object' && 'name' in error && (error as { name?: string }).name === 'AbortError') return;
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        try {
+          await navigator.clipboard.writeText(fallbackText);
+          setShareState('copied');
+          return;
+        } catch {
+          // Clipboard write blocked; fall through to unsupported state.
+        }
+      }
+      setShareState('unsupported');
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  return <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="feed-detail-title" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <article className="modal feed-detail-dialog">
       <div className="modal-header">
         <div><span className="eyebrow">{T(item.type).toLocaleUpperCase(locale)} · {siteName}</span><h2 id="feed-detail-title">{item.title}</h2></div>
@@ -84,7 +140,20 @@ export function HomeFeedDetailDialog({ item, siteName, onClose }: { item: HomeFe
       <div className="feed-detail-meta"><span><Icon size={16} />{formatHomeFeedDate(item.date, locale)}</span>{item.type === 'Event' && <span><Clock3 size={16} />{formatHomeFeedTime(item.date, locale)}</span>}{item.location && <span><MapPin size={16} />{item.location}</span>}</div>
       <p className="feed-detail-summary">{item.summary}</p>
       <div className="feed-detail-body">{item.details}</div>
-      {item.attachmentUrl && <a className="feed-detail-attachment" href={item.attachmentUrl} target="_blank" rel="noreferrer"><ExternalLink size={15} /> {T('Open attachment')}</a>}
+      <div className="feed-detail-actions">
+        <button className="feed-detail-share" type="button" onClick={() => void handleShare()} disabled={sharing}>
+          {shareState === 'shared' || shareState === 'copied' ? <Check size={15} aria-hidden="true" /> : <Share2 size={15} aria-hidden="true" />}
+          <span>{T('Share')}</span>
+        </button>
+        {attachmentUrl && <a className="feed-detail-attachment" href={attachmentUrl} target="_blank" rel="noopener noreferrer"><ExternalLink size={15} /> {T('Open attachment')}</a>}
+        {shareState !== 'idle' && <span className={`feed-detail-share-status${shareState === 'unsupported' ? ' is-muted' : ''}`} role="status" aria-live="polite">
+          {shareState === 'shared'
+            ? T('Shared')
+            : shareState === 'copied'
+              ? T('Summary copied to clipboard')
+              : T('Sharing is not supported on this device.')}
+        </span>}
+      </div>
       <div className="modal-footnote">{T('Confirm event dates and site instructions through official channels.')}</div>
     </article>
   </div>;
