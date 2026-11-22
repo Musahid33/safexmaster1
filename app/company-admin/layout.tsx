@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { CompanyShell } from './components/CompanyShell';
-import '../super-admin/super-admin.css';
+import './admin-console.css';
 import './company-admin.css';
 
 export const metadata: Metadata = { title: 'Company Admin | SafetyOS', description: 'SafetyOS company administrator workspace preview' };

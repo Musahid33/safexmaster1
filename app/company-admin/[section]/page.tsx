@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function CompanySection({ params }: { params: Promise<{ section: string }> }) {
-  await requireAdminAccess('company');
+  await requireAdminAccess();
   const { section } = await params;
   const page = getCompanyPage(section);
   if (!page) notFound();

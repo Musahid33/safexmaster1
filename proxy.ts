@@ -2,12 +2,12 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { mayAccessAdmin } from '@/lib/admin-access';
 
+const LOGIN_PATH = '/company-admin/login';
+
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  const owner = path.startsWith('/super-admin');
-  const loginPath = owner ? '/super-admin/login' : '/company-admin/login';
-  if (path === loginPath || path === '/super-admin/forgot-password') return NextResponse.next();
-  const deny = () => { const url = request.nextUrl.clone(); url.pathname = loginPath; url.search = ''; const response = NextResponse.redirect(url); response.headers.set('Cache-Control', 'private, no-store'); return response; };
+  if (path === LOGIN_PATH) return NextResponse.next();
+  const deny = () => { const url = request.nextUrl.clone(); url.pathname = LOGIN_PATH; url.search = ''; const response = NextResponse.redirect(url); response.headers.set('Cache-Control', 'private, no-store'); return response; };
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) return deny();
@@ -23,9 +23,9 @@ export async function proxy(request: NextRequest) {
     const { data, error } = await client.rpc('current_admin_access');
     const access = Array.isArray(data) ? data[0] : null;
     const rawCompany = request.cookies.get('safetyos-company-id')?.value?.trim() ?? '';
-    const activeCompanyId = !owner && rawCompany ? rawCompany : undefined;
-    if (error || !access || !mayAccessAdmin(owner ? 'owner' : 'company', access, activeCompanyId)) return deny();
+    const activeCompanyId = rawCompany || undefined;
+    if (error || !access || !mayAccessAdmin(access, activeCompanyId)) return deny();
     return response;
   } catch { return deny(); }
 }
-export const config = { matcher: ['/super-admin/:path*', '/company-admin/:path*'] };
+export const config = { matcher: ['/company-admin/:path*'] };
