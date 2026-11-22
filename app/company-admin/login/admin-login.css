@@ -1,0 +1,167 @@
+/* Company Admin login — same "Safety First, Always." design language as the worker app account page. */
+.admin-login {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 28px 20px;
+  background: linear-gradient(160deg, #e8f2fe 0%, #d6e8fb 55%, #c7def8 100%);
+  font-family: inherit;
+}
+.admin-login .login-page-shell { width: 100%; max-width: 1120px; margin: 0 auto; }
+.admin-login .login-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 610px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #d9ebff;
+  box-shadow: 0 18px 50px rgba(20, 54, 94, .12);
+}
+.admin-login .login-visual {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 610px;
+  overflow: hidden;
+  border-right: 7px solid #ff891e;
+  border-bottom: 7px solid #ff891e;
+  border-bottom-right-radius: 66% 38%;
+  background: linear-gradient(180deg, rgba(5, 29, 65, .02) 20%, rgba(6, 39, 84, .42) 48%, #0a3976 100%), url('/images/login-safety-workers.jpg') center 28% / cover no-repeat;
+  color: #fff;
+}
+.admin-login .login-visual-content { position: relative; z-index: 1; padding: 32px 38px 58px; }
+.admin-login .login-visual-content h1 { margin: 0; color: #fff; font-size: clamp(35px, 4vw, 55px); line-height: 1.05; letter-spacing: -.035em; font-weight: 850; }
+.admin-login .login-accent-line { display: block; width: 65px; height: 6px; margin: 20px 0 24px; border-radius: 20px; background: #ff891e; }
+.admin-login .login-feature-list { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.admin-login .login-feature-list li { display: flex; align-items: center; gap: 13px; color: #fff; font-size: 14px; font-weight: 700; }
+.admin-login .login-feature-list svg { flex: none; }
+
+.admin-login .login-form-area { display: flex; align-items: center; padding: 38px; }
+.admin-login .account-form-card { width: 100%; border: 0; border-radius: 24px; background: #fff; box-shadow: 0 14px 36px rgba(29, 64, 107, .16); }
+.admin-login .account-card-body { padding: 42px 36px; }
+.admin-login .account-form-intro { margin-bottom: 34px; text-align: center; }
+.admin-login .account-form-intro h2 { margin: 0; color: #071a3f; font-size: clamp(30px, 3vw, 42px); font-weight: 850; line-height: 1.15; }
+.admin-login .account-form-intro p { margin: 8px 0 0; color: #56647b; font-size: 16px; }
+
+.admin-login .account-master-form { display: grid; gap: 22px; margin-top: 0; }
+.admin-login .account-field { display: grid; gap: 8px; }
+.admin-login .account-field label { color: #0b1833; font-size: 14px; font-weight: 800; }
+.admin-login .account-field-control {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid #b8c8d9;
+  border-radius: 12px;
+  background: #f0f5fb;
+  color: #0b1d40;
+  transition: border-color .15s, box-shadow .15s;
+}
+.admin-login .account-field-control:focus-within { border-color: #0844af; box-shadow: 0 0 0 3px rgba(8, 68, 175, .15); }
+.admin-login .account-field-control input {
+  flex: 1;
+  min-width: 0;
+  min-height: 50px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #0b1d40;
+  font: inherit;
+  font-size: 16px;
+}
+.admin-login .account-field-control input::placeholder { color: #53637c; opacity: 1; }
+.admin-login .account-visibility {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #53637c;
+  cursor: pointer;
+}
+.admin-login .account-visibility:hover { color: #0b1d40; }
+.admin-login .account-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 56px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 12px;
+  background: #063eae;
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .15s;
+}
+.admin-login .account-submit:hover { background: #002f8f; }
+.admin-login .account-submit:disabled { opacity: .65; cursor: wait; }
+.admin-login .account-reset {
+  justify-self: center;
+  min-height: 44px;
+  margin-top: -14px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: #0640a1;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.admin-login .account-reset:hover { text-decoration: underline; }
+
+.admin-login .inline-notice {
+  padding: 11px 12px;
+  border: 1px solid #d7e1ec;
+  border-radius: 10px;
+  background: #f3f7fb;
+  color: #182946;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.admin-login .account-form-message { margin-top: 12px; }
+.admin-login .account-preview-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 20px;
+  padding: 11px 12px;
+  border: 1px solid #d7e1ec;
+  border-radius: 10px;
+  background: #f3f7fb;
+  color: #53637c;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.admin-login .account-preview-note svg { flex: none; margin-top: 1px; color: #53637c; }
+
+@media (max-width: 700px) {
+  .admin-login { padding: 14px 10px; }
+  .admin-login .login-layout { grid-template-columns: 1fr; border-radius: 18px; }
+  .admin-login .login-visual {
+    min-height: 330px;
+    border-right-width: 5px;
+    border-bottom-width: 5px;
+    border-bottom-right-radius: 48% 20%;
+    background-position: center 32%;
+  }
+  .admin-login .login-visual-content { padding: 28px 24px 30px; }
+  .admin-login .login-visual-content h1 { font-size: 36px; }
+  .admin-login .login-accent-line { margin: 12px 0 15px; }
+  .admin-login .login-feature-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .admin-login .login-feature-list li { gap: 7px; font-size: 11px; }
+  .admin-login .login-feature-list svg { width: 19px; height: 19px; }
+  .admin-login .login-form-area { padding: 20px; }
+  .admin-login .account-card-body { padding: 28px 22px; }
+  .admin-login .account-form-intro { margin-bottom: 25px; }
+  .admin-login .account-form-intro h2 { font-size: 29px; }
+  .admin-login .account-form-intro p { font-size: 14px; }
+}

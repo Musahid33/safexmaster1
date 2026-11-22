@@ -24,8 +24,11 @@ async function limit(identifier: string) {
 }
 async function login(form: FormData): Promise<LoginState> {
   const username = normalize(form.get('username'));
-  const slug = normalize(form.get('company'));
+  // Company slug comes from the app context (worker portal passes its own) or the
+  // deployment's COMPANY_PORTAL_SLUG — the standalone admin login never asks for it.
+  const slug = normalize(form.get('company')) || (process.env.COMPANY_PORTAL_SLUG ?? '').trim().toLowerCase();
   const password = form.get('password');
+  if (!slug) return unavailable;
   if (!validAdminLogin(username, slug, password) || typeof password !== 'string') return failure;
   let success = false;
   try {
