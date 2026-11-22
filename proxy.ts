@@ -1,12 +1,19 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { mayAccessAdmin } from '@/lib/admin-access';
+import { ADMIN_DEMO_COOKIE, isAdminDemoEnabled } from '@/lib/admin-demo';
 
 const LOGIN_PATH = '/company-admin/login';
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   if (path === LOGIN_PATH) return NextResponse.next();
+  // Preview-only demo sign-in: bypasses the database check outside production.
+  if (isAdminDemoEnabled() && request.cookies.get(ADMIN_DEMO_COOKIE)?.value === '1') {
+    const demoResponse = NextResponse.next({ request });
+    demoResponse.headers.set('Cache-Control', 'private, no-store');
+    return demoResponse;
+  }
   const deny = () => { const url = request.nextUrl.clone(); url.pathname = LOGIN_PATH; url.search = ''; const response = NextResponse.redirect(url); response.headers.set('Cache-Control', 'private, no-store'); return response; };
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;

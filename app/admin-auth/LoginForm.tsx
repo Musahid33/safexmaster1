@@ -3,14 +3,14 @@ import { useActionState, useState, type FormEvent } from 'react';
 import { ArrowRight, Eye, EyeOff, Info, LockKeyhole, UserRound } from 'lucide-react';
 import { companyLogin } from './actions';
 
-export function LoginForm({ connected }: { connected: boolean }) {
+export function LoginForm({ connected, demoEnabled }: { connected: boolean; demoEnabled: boolean }) {
   const [state, action, pending] = useActionState(companyLogin, { error: '' });
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     setMessage('');
-    if (!connected) {
+    if (!connected && !demoEnabled) {
       event.preventDefault();
       event.currentTarget.reset();
       setShowPassword(false);
@@ -48,7 +48,9 @@ export function LoginForm({ connected }: { connected: boolean }) {
       <Info size={16} aria-hidden="true" />
       <span>{connected
         ? 'Company Admin sign-in. Password reset is not connected yet.'
-        : 'Company Admin login is not connected to a company yet. Please do not enter real credentials.'}</span>
+        : demoEnabled
+          ? 'Demo preview: sign in with username admin and the demo password set for this preview.'
+          : 'Company Admin login is not connected to a company yet. Please do not enter real credentials.'}</span>
     </div>
   </>;
 }

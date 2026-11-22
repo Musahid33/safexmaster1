@@ -8,6 +8,7 @@ export const metadata = { title: 'Company Admin Sign In' };
 export default function CompanyLogin() {
   // This portal serves exactly one company, configured by the deployment.
   const connected = Boolean(process.env.COMPANY_PORTAL_SLUG?.trim());
+  const demoEnabled = Boolean(process.env.ADMIN_DEMO_PASSWORD);
   return <main className="admin-login">
     <div className="login-page-shell">
       <div className="login-layout">
@@ -26,7 +27,7 @@ export default function CompanyLogin() {
         <div className="login-form-area">
           <div className="account-form-card">
             <div className="account-card-body">
-              <LoginForm connected={connected} />
+              <LoginForm connected={connected} demoEnabled={demoEnabled} />
             </div>
           </div>
         </div>
