@@ -34,11 +34,18 @@ test('demo mode supplies a tenant ID so reports can be queued', () => {
   assert.ok(page.includes('await queueReport(activeTenantId, currentSite.id, data)'), 'queueing does not use the demo tenant');
 });
 
-test('demo mode never leaks into a production build', () => {
-  assert.ok(page.includes("useState(process.env.NODE_ENV !== 'development')"), 'demo check must be development-only');
-  assert.ok(page.includes("if (process.env.NODE_ENV === 'development')"), 'demo flag must be read only in development');
-  // The fixture itself must state that it is temporary.
+test('demo mode is opt-in per deployment and per visit', () => {
+  // Two gates: the build must allow it (NEXT_PUBLIC_ENABLE_DEMO), and the visitor must ask
+  // for it (?demo=1). Nothing appears by default.
+  assert.ok(page.includes("process.env.NEXT_PUBLIC_ENABLE_DEMO === '1'"), 'demo build flag is missing');
+  assert.ok(page.includes("new URLSearchParams(window.location.search).has('demo')"), 'demo is not opt-in per visit');
+  assert.ok(page.includes('const [demoMode, setDemoMode] = useState(false)'), 'demo mode must start off');
   assert.ok(fixture.includes('TEMPORARY DEMO FIXTURE'), 'fixture must stay marked as temporary');
+});
+
+test('demo data can never render over a real tenant portal', () => {
+  // tenantId is populated the moment a company resolves from the host or /portal/<slug>.
+  assert.ok(page.includes("if (demoBuildEnabled && !tenantId)"), 'demo guard does not check for a resolved tenant');
 });
 
 test('a demo submission appears in View Reports without touching the database', () => {

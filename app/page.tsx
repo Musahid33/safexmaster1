@@ -93,7 +93,13 @@ export default function SafexHome() {
   // dropdown and the hero banner can be tested before the database connects. Removed
   // before production together with the fixture file.
   const [demoMode, setDemoMode] = useState(false);
-  const [demoChecked, setDemoChecked] = useState(process.env.NODE_ENV !== 'development');
+  /**
+   * Demo mode is gated twice: it is opt-in per visit with ?demo=1, and it is compiled out of
+   * production builds unless NEXT_PUBLIC_ENABLE_DEMO=1 is set on that Vercel environment.
+   * Preview deployments set it; the public tenant deployment leaves it unset.
+   */
+  const demoBuildEnabled = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_ENABLE_DEMO === '1';
+  const [demoChecked, setDemoChecked] = useState(!demoBuildEnabled);
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [page, setPage] = useState<PageKey>('home');
   const [accountReturnPage, setAccountReturnPage] = useState<PageKey>('home');
@@ -219,11 +225,13 @@ export default function SafexHome() {
   }, []);
 
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
+    // Never on a tenant's own portal: `tenantId` is set as soon as a real company resolves
+    // from the host or the /portal/<slug> route, so demo data can never appear over it.
+    if (demoBuildEnabled && !tenantId) {
       if (new URLSearchParams(window.location.search).has('demo')) setDemoMode(true);
-      setDemoChecked(true);
     }
-  }, []);
+    if (demoBuildEnabled) setDemoChecked(true);
+  }, [demoBuildEnabled, tenantId]);
 
   // A site choice is remembered on this device for this tenant, not shared across tenants.
   const lastTenantRef = useRef<string | undefined>(undefined);
@@ -531,7 +539,7 @@ export default function SafexHome() {
   return (
     <div className="safex-app">
       <div role="status" style={{ background: "#fff4d6", color: "#513900", textAlign: "center", padding: "8px 12px", fontSize: 13 }}>UI preview only · No live data or server report submissions{pendingReportCount ? ` · ${pendingReportCount} report(s) saved on this device, not sent` : ''}</div>
-      {demoMode && <div role="status" className="demo-ribbon">DEMO MODE · sample sites, stats, events &amp; reports (temporary — removed before production)</div>}
+      {demoMode && <div role="status" className="demo-ribbon">DEMO MODE · sample locations, employees &amp; reports · nothing is saved to the database · add <code>?demo=1</code> to the URL to open it</div>}
       <div className="site-header-shell">
         <header className="topbar">
           <div className="topbar-inner">
