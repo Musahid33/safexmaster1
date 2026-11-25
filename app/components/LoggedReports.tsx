@@ -5,6 +5,7 @@ import { ClipboardList, Filter, ImagePlus, Loader2, RefreshCw, Search, X } from 
 import { safeResourceUrl } from '@/lib/safe-url';
 import type { ReportStatus, ReportType, Site } from '@/lib/types';
 import { useI18n } from './I18nProvider';
+import { severityText } from './ReportWorkflow';
 import './logged-reports.css';
 
 /**
@@ -287,7 +288,7 @@ export default function LoggedReports({ sites = [], selectedSiteId = '', demoRep
           <div><dt>Category</dt><dd>{selected.category || 'Not stated'}</dd></div>
           <div><dt>Area / location</dt><dd>{selected.area || 'Not stated'}</dd></div>
           <div><dt>Department</dt><dd>{selected.department || 'Not stated'}</dd></div>
-          <div><dt>Severity</dt><dd>{selected.severity || 'Not stated'}</dd></div>
+          <div><dt>Severity</dt><dd>{selected.severity ? severityText(selected.severity as never) || selected.severity : 'Not stated'}</dd></div>
           <div><dt>Incident date</dt><dd>{formatDay(selected.occurredAt)}</dd></div>
           <div><dt>Filed on</dt><dd>{formatDay(selected.filedAt)}</dd></div>
           <div><dt>Reported by</dt><dd>{selected.reporterName || 'Not recorded'}</dd></div>

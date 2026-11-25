@@ -1,16 +1,33 @@
 'use client';
 
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import { ArrowLeft, ChevronRight, ImagePlus, LockKeyhole, MapPin, Search, Send, X } from 'lucide-react';
+import { ArrowLeft, Camera, ChevronRight, ImagePlus, Images, LockKeyhole, MapPin, Search, Send, X } from 'lucide-react';
 import type { EmployeeDirectory } from '@/lib/employee-directory';
-import type { Employee, Language, ReportType, Site } from '@/lib/types';
+import type { Employee, HazardCategory, Language, ReportType, SeverityLevel, Site } from '@/lib/types';
+import { HAZARD_CATEGORIES, SEVERITY_LEVELS } from '@/lib/types';
 import { supportsAnonymousReporting } from '@/lib/report-privacy';
 import LanguageStrip from './LanguageStrip';
 import VoiceTextArea from './VoiceTextArea';
 import { useI18n } from './I18nProvider';
 
 type CategoryOption = { value: string; label: string; description: string; icon: string };
-type Severity = 'Low' | 'Medium' | 'High';
+
+/**
+ * Severity is a numeric 1–5 risk rating. Old records may still carry the previous
+ * Low/Medium/High value, so both shapes are accepted here and normalized by `severityText()`.
+ */
+type Severity = SeverityLevel | 'Low' | 'Medium' | 'High';
+
+const SEVERITY_LABELS: Record<Severity, string> = {
+  1: 'Insignificant', 2: 'Minor', 3: 'Moderate', 4: 'Major', 5: 'Critical',
+  Low: 'Low risk', Medium: 'Medium risk', High: 'High risk'
+};
+
+/** Display label for a stored severity value (number first, legacy text second). */
+export function severityText(value: Severity | '' | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '';
+  return SEVERITY_LABELS[value] ?? String(value);
+}
 
 export type ReportSubmission = {
   type: ReportType;
@@ -39,12 +56,19 @@ type Props = {
   onSubmit: (data: ReportSubmission) => Promise<void> | void;
 };
 
+const HAZARD_CATEGORY_ICONS: Record<HazardCategory, string> = {
+  Physical: '💪', Chemical: '🧪', Electrical: '⚡', Mechanical: '⚙️', Fire: '🔥',
+  Ergonomical: '🧍', Environment: '🌍', Biological: '🦠', Other: '❓'
+};
+
 const CATEGORY_OPTIONS: Partial<Record<ReportType, CategoryOption[]>> = {
-  Hazard: [
-    { value: 'Reporting Accident', label: 'Reporting Accident', description: 'An incident or accident that needs to be recorded', icon: '⚠️' },
-    { value: 'Property Damage', label: 'Property Damage', description: 'Damage to equipment, tools, or site property', icon: '🏗️' },
-    { value: 'Red Risk Incident', label: 'Red Risk Incident', description: 'A high-potential or critical safety event', icon: '🔥' }
-  ],
+  // Hazard uses the fixed nine-category taxonomy in lib/types.ts (shared with the database).
+  Hazard: HAZARD_CATEGORIES.map((category) => ({
+    value: category,
+    label: category,
+    description: '',
+    icon: HAZARD_CATEGORY_ICONS[category]
+  })),
   'Safety Observation': [
     { value: 'Unsafe Condition', label: 'UC · Unsafe Condition', description: 'Report an unsafe condition observed at work', icon: '⚠️' },
     { value: 'Unsafe Act', label: 'UA · Unsafe Act', description: 'Report an unsafe act or behaviour observed', icon: '🚧' },
@@ -126,7 +150,9 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
   const [immediateAction, setImmediateAction] = useState('');
   const [severity, setSeverity] = useState<Severity | ''>('');
   const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -181,6 +207,7 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
   }, [onClose, submitting]);
 
   const isIncident = type === 'Near Miss' || type === 'Hazard' || type === 'Unsafe Condition' || type === 'Unsafe Act' || type === 'Safety Observation' || type === 'Speak Up';
+  const isHazard = type === 'Hazard';
   const showLocation = isIncident;
   const showDepartment = type === 'Near Miss' || type === 'Hazard';
   const departmentRequired = type === 'Near Miss';
@@ -234,6 +261,21 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
     setError('');
   }
 
+  function clearPhoto() {
+    setPhoto(null);
+    if (photoInputRef.current) photoInputRef.current.value = '';
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+  }
+
+  // Build one preview URL per selected file and revoke it when the file changes or the
+  // form closes, so a long report session cannot leak object URLs.
+  useEffect(() => {
+    if (!photo) { setPhotoPreview(null); return; }
+    const url = URL.createObjectURL(photo);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photo]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
@@ -264,7 +306,21 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
       return;
     }
     if (showSeverity && !severity) {
-      setError('Select a severity rating.');
+      setError('Select the risk severity (1 to 5).');
+      return;
+    }
+    // Hazard needs a category, a 1–5 rating and an immediate-action statement, because the
+    // safety team cannot triage an unclassified hazard or one with no action recorded.
+    if (isHazard && !category) {
+      setError('Choose a hazard category to continue.');
+      return;
+    }
+    if (isHazard && !severity) {
+      setError('Select the risk severity (1 to 5).');
+      return;
+    }
+    if (isHazard && !immediateAction.trim()) {
+      setError('Immediate action is required to make the area safe.');
       return;
     }
     setSubmitting(true);
@@ -339,37 +395,80 @@ export default function ReportWorkflow({ type, site, directory, language, onLang
 
         <label className="field-label" htmlFor="report-datetime">🕐 {T('Date & time of incident')} <span className="required">*</span></label><input id="report-datetime" className="form-control" type="datetime-local" value={incidentAt} onChange={(event) => setIncidentAt(event.target.value)} required />
 
-        <label className="field-label" htmlFor="report-description">{descriptionLabel} <span className="required">*</span></label>
-        <VoiceTextArea
-          id="report-description"
-          value={description}
-          onChange={setDescription}
-          language={language}
-          rows={4}
-          maxLength={1200}
-          placeholder={descriptionPlaceholder}
-          required
-          voiceEnabled={voiceEnabled}
-          onError={setError}
-        />
+        {/* Hazard: category → description → severity → immediate action → photo, in that order. */}
+        {isHazard ? <>
+          <label className="field-label" htmlFor="report-hazard-category">🏷️ {T('Hazard category')} <span className="required">*</span></label>
+          <select id="report-hazard-category" className="form-control" value={category ?? ''} onChange={(event) => { setCategory(event.target.value || null); setError(''); }} required>
+            <option value="">{T('Select hazard category')}</option>
+            {HAZARD_CATEGORIES.map((option) => <option key={option} value={option}>{HAZARD_CATEGORY_ICONS[option]} {T(option)}</option>)}
+          </select>
 
-        {showSeverity && <div className="severity-control"><label className="field-label" htmlFor="report-severity">⚠️ {T('Severity rating')} <span className="required">*</span></label><select id="report-severity" className="form-control" value={severity} onChange={(event) => setSeverity(event.target.value as Severity | '')} required><option value="">{T('Select severity')}</option><option value="Low">🟢 {T('Low risk')}</option><option value="Medium">🟡 {T('Medium risk')}</option><option value="High">🔴 {T('High risk')}</option></select></div>}
+          <label className="field-label" htmlFor="report-description">⚠️ {T('Hazard Description')} <span className="required">*</span></label>
+          <VoiceTextArea id="report-description" value={description} onChange={setDescription} language={language} rows={4} maxLength={1200} placeholder={T('Describe the unsafe condition or hazard.')} required voiceEnabled={voiceEnabled} onError={setError} />
 
-        <label className="field-label" htmlFor="report-action">⚡ {T('Immediate action taken')} <span className="optional">{T('Optional')}</span></label>
-        <VoiceTextArea
-          id="report-action"
-          value={immediateAction}
-          onChange={setImmediateAction}
-          language={language}
-          rows={2}
-          maxLength={600}
-          placeholder={T('Optional — what action was taken immediately?')}
-          voiceEnabled={voiceEnabled}
-          onError={setError}
-        />
+          <fieldset className="severity-scale">
+            <legend className="field-label">⚠️ {T('Risk severity (1–5)')} <span className="required">*</span></legend>
+            <div className="severity-scale-options" role="radiogroup" aria-label={T('Risk severity (1–5)')}>
+              {SEVERITY_LEVELS.map((level) => <label key={level.value} className={`severity-scale-option level-${level.value} ${severity === level.value ? 'selected' : ''}`}>
+                <input type="radio" name="hazard-severity" value={level.value} checked={severity === level.value} onChange={() => { setSeverity(level.value); setError(''); }} required />
+                <span className="severity-scale-number">{level.value}</span>
+                <span className="severity-scale-copy"><b>{T(level.en)}</b><small>{level.value} – {T(level.en)}</small></span>
+              </label>)}
+            </div>
+          </fieldset>
 
-        <label className="upload-button report-upload"><ImagePlus size={17} /><span>{photo?.name ?? T('Attach photo (optional)')}</span><input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} /><small>{T('Image only · maximum 12 MB')}</small></label>
-        {photo && <div className="photo-file-row"><span><ImagePlus size={14} />{photo.name}</span><button type="button" onClick={() => { setPhoto(null); if (photoInputRef.current) photoInputRef.current.value = ''; }} aria-label={T('Remove photo')}>{T('Remove')}</button></div>}
+          <label className="field-label" htmlFor="report-action">⚡ {T('Immediate Action Taken')} <span className="required">*</span></label>
+          <VoiceTextArea id="report-action" value={immediateAction} onChange={setImmediateAction} language={language} rows={3} maxLength={600} placeholder={T('Describe any immediate action taken to make the area safe.')} required voiceEnabled={voiceEnabled} onError={setError} />
+
+          <span className="field-label">📷 {T('Attach Photo')} <span className="optional">{T('Optional')}</span></span>
+          <div className="photo-actions">
+            <label className="upload-button photo-action">
+              <Camera size={18} aria-hidden="true" /><span>{T('Take photo')}</span>
+              <input ref={cameraInputRef} type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={handlePhotoChange} />
+            </label>
+            <label className="upload-button photo-action">
+              <Images size={18} aria-hidden="true" /><span>{T('From gallery')}</span>
+              <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} />
+            </label>
+          </div>
+          <small className="field-help">{T('Camera or gallery')} · {T('Image only · maximum 12 MB')}</small>
+          {photo && <div className="photo-preview">
+            {photoPreview && <img src={photoPreview} alt={photo.name} />}
+            <div className="photo-preview-meta"><span><ImagePlus size={14} aria-hidden="true" />{photo.name}</span><button type="button" onClick={clearPhoto} aria-label={T('Remove photo')}>{T('Remove')}</button></div>
+          </div>}
+        </> : <>
+          <label className="field-label" htmlFor="report-description">{descriptionLabel} <span className="required">*</span></label>
+          <VoiceTextArea
+            id="report-description"
+            value={description}
+            onChange={setDescription}
+            language={language}
+            rows={4}
+            maxLength={1200}
+            placeholder={descriptionPlaceholder}
+            required
+            voiceEnabled={voiceEnabled}
+            onError={setError}
+          />
+
+          {showSeverity && <div className="severity-control"><label className="field-label" htmlFor="report-severity">⚠️ {T('Severity rating')} <span className="required">*</span></label><select id="report-severity" className="form-control" value={severity} onChange={(event) => setSeverity(event.target.value as Severity | '')} required><option value="">{T('Select severity')}</option><option value="Low">🟢 {T('Low risk')}</option><option value="Medium">🟡 {T('Medium risk')}</option><option value="High">🔴 {T('High risk')}</option></select></div>}
+
+          <label className="field-label" htmlFor="report-action">⚡ {T('Immediate action taken')} <span className="optional">{T('Optional')}</span></label>
+          <VoiceTextArea
+            id="report-action"
+            value={immediateAction}
+            onChange={setImmediateAction}
+            language={language}
+            rows={2}
+            maxLength={600}
+            placeholder={T('Optional — what action was taken immediately?')}
+            voiceEnabled={voiceEnabled}
+            onError={setError}
+          />
+
+          <label className="upload-button report-upload"><ImagePlus size={17} /><span>{photo?.name ?? T('Attach photo (optional)')}</span><input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} /><small>{T('Image only · maximum 12 MB')}</small></label>
+          {photo && <div className="photo-file-row"><span><ImagePlus size={14} />{photo.name}</span><button type="button" onClick={clearPhoto} aria-label={T('Remove photo')}>{T('Remove')}</button></div>}
+        </>}
 
         {error && <div className="inline-notice warning" role="alert">{T(error)}</div>}
         <div className="form-footer report-submit-footer"><button className="primary-button" type="submit" disabled={submitting}><Send size={16} /> {T(submitting ? 'Saving report…' : 'Save report')}</button></div>

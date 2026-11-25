@@ -1,6 +1,41 @@
 export type Language = 'en' | 'hi' | 'or' | 'bn' | 'pa' | 'mr';
 export type ReportType = 'Near Miss' | 'Hazard' | 'Safety Observation' | 'Unsafe Condition' | 'Unsafe Act' | 'Feedback' | 'Grievance' | 'Speak Up' | 'Suggestion';
 export type ReportStatus = 'Open' | 'In Progress' | 'Closed';
+
+/**
+ * Hazard classification. Fixed taxonomy shared by the report form, the admin console and
+ * (once reporting is connected) the `reports.category` column, so it is defined once here.
+ */
+export type HazardCategory =
+  | 'Physical'
+  | 'Chemical'
+  | 'Electrical'
+  | 'Mechanical'
+  | 'Fire'
+  | 'Ergonomical'
+  | 'Environment'
+  | 'Biological'
+  | 'Other';
+
+export const HAZARD_CATEGORIES: readonly HazardCategory[] = [
+  'Physical', 'Chemical', 'Electrical', 'Mechanical', 'Fire', 'Ergonomical', 'Environment', 'Biological', 'Other'
+] as const;
+
+/**
+ * Five-point risk rating (1 = insignificant … 5 = critical). The number is the stored value;
+ * the label is presentation only, so reports stay comparable across languages.
+ */
+export type SeverityLevel = 1 | 2 | 3 | 4 | 5;
+
+export type SeverityOption = { value: SeverityLevel; en: string; hi: string };
+
+export const SEVERITY_LEVELS: readonly SeverityOption[] = [
+  { value: 1, en: 'Insignificant', hi: 'नगण्य' },
+  { value: 2, en: 'Minor', hi: 'मामूली' },
+  { value: 3, en: 'Moderate', hi: 'मध्यम' },
+  { value: 4, en: 'Major', hi: 'गंभीर' },
+  { value: 5, en: 'Critical', hi: 'अति गंभीर' }
+] as const;
 /**
  * Why the employee directory could not answer. Shown to operators instead of the generic
  * "keys are not configured" hint, which was wrong whenever the database was simply down.
