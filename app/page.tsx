@@ -86,20 +86,14 @@ function getUpcomingEventStatus(value: string): 'Today' | 'Tomorrow' | 'Upcoming
 export default function SafexHome() {
   const { language, setLanguage, T } = useI18n();
   // Tenant details are supplied by the public portal route when it is configured.
-  const { ready: directoryReady, tenantId, companySlug, sites, directory, companyName, directoryMode, directoryReason, employeeCount } = useSafexBootstrap();
+  const { ready: directoryReady, directory, directoryMode, directoryReason, employeeCount } = useSafexBootstrap();
   const locale = LANGUAGE_LOCALE[language];
-  // TEMPORARY DEMO MODE: ?demo=1 in the URL (development builds only) runs the home
-  // experience on lib/demo-fixture.ts sample data so site filtering, the View Reports
-  // dropdown and the hero banner can be tested before the database connects. Removed
-  // before production together with the fixture file.
-  const [demoMode, setDemoMode] = useState(false);
   /**
-   * Demo mode is gated twice: it is opt-in per visit with ?demo=1, and it is compiled out of
-   * production builds unless NEXT_PUBLIC_ENABLE_DEMO=1 is set on that Vercel environment.
-   * Preview deployments set it; the public tenant deployment leaves it unset.
+   * FRONTEND-ONLY BUILD. No backend or database is connected, so the app runs on the sample
+   * data in lib/demo-fixture.ts: one demo location (West Bokaro), its employees and content.
+   * Remove the fixture and restore a tenant source when the database is wired back in.
    */
-  const demoBuildEnabled = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_ENABLE_DEMO === '1';
-  const [demoChecked, setDemoChecked] = useState(!demoBuildEnabled);
+  const demoChecked = true;
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [page, setPage] = useState<PageKey>('home');
   const [accountReturnPage, setAccountReturnPage] = useState<PageKey>('home');
@@ -111,20 +105,18 @@ export default function SafexHome() {
   // Empty preview content for the vault and home feed.
   const [vaultDocuments] = useState<VaultDocument[]>([]);
   const [contentFeed] = useState<HomeFeedItem[]>([]);
-  const displaySites = demoMode ? DEMO_SITES : sites;
-  const displayFeed = demoMode ? DEMO_FEED : contentFeed;
-  const displayRecognitions = demoMode ? DEMO_RECOGNITIONS : recognitions;
+  const displaySites = DEMO_SITES;
+  const displayFeed = DEMO_FEED;
+  const displayRecognitions = DEMO_RECOGNITIONS;
   /**
-   * Demo mode needs a tenant ID of its own: report queueing and the "saved on this device"
-   * counter are tenant-scoped, and without one the form refuses to save. It is a fixed
-   * placeholder so queued demo reports never mix with a real tenant's queue.
+   * Report queueing is tenant-scoped, so the demo uses a fixed placeholder ID. Queued demo
+   * reports therefore never mix with a real tenant's queue once the database is connected.
    */
-  const DEMO_TENANT_ID = 'demo-tenant';
-  const activeTenantId = demoMode ? DEMO_TENANT_ID : tenantId;
-  // The lookup must answer in demo mode, otherwise the review form cannot be submitted.
-  const activeDirectory = useMemo(() => (demoMode ? demoDirectory() : directory), [demoMode, directory]);
-  // Derive the portal name only from the selected tenant's supplied company name.
-  const appCompanyName = demoMode ? 'Emveess (Demo)' : companyName;
+  const activeTenantId = 'demo-tenant';
+  // Local directory so the report form's employee lookup answers without a server.
+  const activeDirectory = useMemo(() => demoDirectory(), []);
+  // Demo company identity until a tenant source supplies the real one.
+  const appCompanyName = 'Emveess (Demo)';
   const brandCompanyName = (appCompanyName ?? '').trim();
   const company = brandingFor(brandCompanyName);
   const appName = portalName(appCompanyName);
@@ -224,20 +216,11 @@ export default function SafexHome() {
     };
   }, []);
 
-  useEffect(() => {
-    // Never on a tenant's own portal: `tenantId` is set as soon as a real company resolves
-    // from the host or the /portal/<slug> route, so demo data can never appear over it.
-    if (demoBuildEnabled && !tenantId) {
-      if (new URLSearchParams(window.location.search).has('demo')) setDemoMode(true);
-    }
-    if (demoBuildEnabled) setDemoChecked(true);
-  }, [demoBuildEnabled, tenantId]);
-
   // A site choice is remembered on this device for this tenant, not shared across tenants.
   const lastTenantRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!directoryReady || !demoChecked) return;
-    const scopeKey = `${activeTenantId ?? ''}|${demoMode ? 'demo' : 'live'}`;
+    const scopeKey = activeTenantId;
     if (siteReady && lastTenantRef.current === scopeKey) return;
     lastTenantRef.current = scopeKey;
     let savedId: string | null = null;
@@ -257,7 +240,7 @@ export default function SafexHome() {
       setSiteDialog(true);
     }
     setSiteReady(true);
-  }, [directoryReady, demoChecked, siteReady, displaySites, activeTenantId, demoMode]);
+  }, [directoryReady, demoChecked, siteReady, displaySites, activeTenantId]);
 
   useEffect(() => {
     if (!activeTenantId) { setPendingReportCount(null); return; }
@@ -462,7 +445,7 @@ export default function SafexHome() {
   async function submitReport(data: ReportSubmission) {
     if (!activeTenantId || !currentSite) throw new Error('Reports cannot be saved until company and site data are connected.');
     await queueReport(activeTenantId, currentSite.id, data);
-    if (demoMode) {
+    {
       // Show the review report straight away in "View Reports". In-memory only: it is
       // never sent anywhere and disappears on reload, which keeps demo data out of the DB.
       const nextIndex = demoReports.length + 1;
@@ -539,7 +522,7 @@ export default function SafexHome() {
   return (
     <div className="safex-app">
       <div role="status" style={{ background: "#fff4d6", color: "#513900", textAlign: "center", padding: "8px 12px", fontSize: 13 }}>UI preview only · No live data or server report submissions{pendingReportCount ? ` · ${pendingReportCount} report(s) saved on this device, not sent` : ''}</div>
-      {demoMode && <div role="status" className="demo-ribbon">DEMO MODE · sample locations, employees &amp; reports · nothing is saved to the database · add <code>?demo=1</code> to the URL to open it</div>}
+      <div role="status" className="demo-ribbon">DEMO DATA · West Bokaro sample location, employees &amp; reports · nothing is saved to a database yet</div>
       <div className="site-header-shell">
         <header className="topbar">
           <div className="topbar-inner">
@@ -703,7 +686,7 @@ export default function SafexHome() {
 
         {page === 'reports' && <section className="page-panel">
           <div className="page-heading"><div><span className="eyebrow">{currentSite?.name ?? T('SITE')}</span><h1>{T('reportsTitle')}</h1></div>{!isSingleSite && <button type="button" className="secondary-button" onClick={() => openSitePicker('reports')}>{T('changeSite')}</button>}</div>
-          <LoggedReports sites={displaySites} selectedSiteId={siteId} demoReports={demoMode ? demoReports : undefined} />
+          <LoggedReports sites={displaySites} selectedSiteId={siteId} demoReports={demoReports} />
         </section>}
 
         {page === 'alerts' && <FeedArchivePage kind="notices" siteName={currentSite?.name ?? T('Selected site')} items={siteFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
@@ -747,7 +730,7 @@ export default function SafexHome() {
         {page === 'install' && <InstallAppPage company={company} canInstall={Boolean(installPrompt)} installMessage={installMessage} onInstall={installApp} onBack={() => setPage('more')} />}
 
         {page === 'company' && <CompanyAboutPage profile={null} onBack={() => setPage('more')} />}
-        {page === 'account' && <AccountManagementPage companySlug={companySlug} onBack={() => setPage(accountReturnPage)} />}
+        {page === 'account' && <AccountManagementPage onBack={() => setPage(accountReturnPage)} />}
         {page === 'aboutApp' && <AboutAppPage company={company} onBack={() => setPage('more')} onOpenInfo={setMoreInfoKind} />}
       </main>
 
@@ -878,7 +861,7 @@ export default function SafexHome() {
       </div>}
 
       {reportType && currentSite && <ReportWorkflow key={`${reportType}-${currentSite.id}`} type={reportType} site={currentSite} directory={activeDirectory} language={language} onLanguageChange={setLanguage} voiceEnabled={APP_FEATURES.voiceReporting} onBack={backFromReport} onClose={() => setReportType(null)} onSubmit={submitReport} />}
-      {profileSearchOpen && <ProfileSearchDialog site={currentSite} sites={displaySites} companyName={appCompanyName} directory={activeDirectory} directoryMode={demoMode ? 'supabase' : directoryMode} directoryReason={demoMode ? null : directoryReason} employeeCount={demoMode ? DEMO_EMPLOYEES.length : employeeCount} autoEmployeeId={qrEmployeeId ?? undefined} onClose={() => { setProfileSearchOpen(false); setQrEmployeeId(null); }} />}
+      {profileSearchOpen && <ProfileSearchDialog site={currentSite} sites={displaySites} companyName={appCompanyName} directory={activeDirectory} directoryMode="supabase" directoryReason={null} employeeCount={DEMO_EMPLOYEES.length} autoEmployeeId={qrEmployeeId ?? undefined} onClose={() => { setProfileSearchOpen(false); setQrEmployeeId(null); }} />}
       {moreInfoKind && <MoreInfoDialog kind={moreInfoKind} company={company} onClose={() => setMoreInfoKind(null)} onLogin={() => { setMoreInfoKind(null); setToast({ key: 'Login is unavailable in the UI preview.' }); }} />}
 
 

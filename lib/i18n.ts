@@ -1,7 +1,6 @@
 import type { Language } from './types';
 import { extendedMessages } from './i18n-extended';
 import { domainMessages } from './i18n-domain';
-import { adminMessages } from './i18n-admin';
 
 export const LANGUAGES: { id: Language; label: string; native: string }[] = [
   { id: 'en', label: 'English', native: 'English' },
@@ -178,7 +177,7 @@ const phraseMessages: Record<string, Partial<Record<Language, string>>> = {
 };
 
 export function t(language: Language, key: string, params?: Record<string, string | number>): string {
-  const translated = phraseMessages[key]?.[language] ?? extendedMessages[key]?.[language] ?? domainMessages[key]?.[language] ?? adminMessages[key]?.[language] ?? coreMessages[language]?.[key] ?? coreMessages.en[key] ?? key;
+  const translated = phraseMessages[key]?.[language] ?? extendedMessages[key]?.[language] ?? domainMessages[key]?.[language] ?? coreMessages[language]?.[key] ?? coreMessages.en[key] ?? key;
   if (!params) return translated;
   return translated.replace(/\{([\w]+)\}/g, (match, name: string) => String(params[name] ?? match));
 }

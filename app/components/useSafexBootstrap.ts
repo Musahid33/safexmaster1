@@ -1,7 +1,5 @@
 'use client';
 
-import { createContext, useContext } from 'react';
-import type { PublicPortal } from '@/lib/public-portal';
 import { MASTER_DIRECTORY, type EmployeeDirectory } from '@/lib/employee-directory';
 import type { DirectoryUnavailableReason, Site } from '@/lib/types';
 
@@ -12,15 +10,17 @@ export type SafexBootstrap = {
   directoryReason: DirectoryUnavailableReason | null;
 };
 
-// UI-only state: a future tenant data source must supply the company and site list.
+/**
+ * UI-only preview state. No backend is connected: the company, sites, directory and content
+ * all come from the local demo fixture until a tenant data source is added back.
+ * The shape is unchanged so connecting a real source later is a one-file change.
+ */
 const PREVIEW: SafexBootstrap = {
   ready: true, tenantId: null, companySlug: null, sites: [],
   companyName: null, directory: MASTER_DIRECTORY, directoryMode: 'unavailable',
   employeeCount: 0, degraded: false, directoryReason: null
 };
-export const PortalContext = createContext<PublicPortal | null>(null);
+
 export function useSafexBootstrap(): SafexBootstrap {
-  const portal = useContext(PortalContext);
-  if (!portal) return PREVIEW;
-  return { ...PREVIEW, tenantId: portal.companyId, companySlug: portal.companySlug, companyName: portal.companyName, sites: portal.sites };
+  return PREVIEW;
 }

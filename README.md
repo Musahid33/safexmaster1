@@ -1,6 +1,8 @@
-# Safex worker UI
+# Safex worker UI — frontend-only master UI
 
-A frontend-only starting point for building the master UI. The worker-facing screens and styling are retained; the admin console, API routes, database integration and server-side code have been removed.
+A **frontend-only** master UI for the worker safety portal. No backend, no database, no
+authentication and no environment variables. Deploy it anywhere (Vercel included) and every
+screen opens with sample data.
 
 ## Run locally
 
@@ -9,32 +11,48 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000. The preview has no connected company or sites, employee directory, published content, authentication or report submission. Site-dependent report forms are unavailable until site data is supplied. It is not suitable for operational safety reporting until those services are implemented and connected. Existing UI controls may show unavailable or empty states.
+Open http://localhost:3000.
 
-## Company profile
+## What is in this build
 
-The Company Profile screen is a UI-only placeholder for About Us, Services, Address, Mobile and Email. It does not load or save data. Its reusable profile component accepts company details as props for a future data source. No database or hosting service is required to run the UI. The Privacy Policy is supplied as UI text; verify its accuracy and review it before production use.
+The app runs on **one demo location — West Bokaro (WBD)** — with sample employees, reports,
+events, circulars and rewards. Nothing is sent anywhere and nothing is written to a database.
 
-## Home hero safety stats
+| Area | Status |
+|---|---|
+| Home, site banner, life saving rules, SOS | UI complete (demo data) |
+| Report forms — Hazard, Near Miss, Safety Observation / UC / UA | UI complete, saves to the device only |
+| Hazard form | Category (9 types), description, 1–5 severity, immediate action, camera/gallery photo |
+| View Reports, filters, report detail | UI complete (demo data) |
+| Training, Document Vault, Rewards, Alerts, Circulars | UI shells with empty/absent states |
+| Employee Passport and search | UI complete (demo directory) |
+| Company Admin console | **Removed** from this build |
+| Report submission to a server | **Not connected** — reports stay on the device |
 
-The home hero banner shows four counters for the **selected site only**: Days Without Injury, Near Miss count, Safety Observation count and published Training count. The public portal RPC (`get_public_portal`) aggregates them per location: the days counter is derived from the location's `last_recordable_injury_at` (falling back to the location's creation date), and the other counts come from that location's reports and published training rows. Until a tenant data source supplies stats, every counter shows zero rather than invented numbers. The compact banner keeps the three counters on a single line on desktop and mobile. The Life Saving Rule entry sits below the View Reports row in Safety Resources and still opens the selected site's rule list.
+Reports submitted in the UI are queued in the browser (IndexedDB) and, for the demo, also
+appear immediately in **View Reports**. Clearing site data removes them.
 
-## Emergency contact and language
+## Not suitable for operational use yet
 
-The SOS dialog uses the selected site's `sosNumber` field and never falls back to a hardcoded phone number. The UI-only preview has no number, so it displays an unavailable message instead of a call link. A future tenant data source must supply the correct site-specific number. Language choices remain defined in the frontend.
+This build has no server, so a submitted report never reaches a safety team. Do not use it
+for real safety reporting until an authenticated, tenant-scoped ingestion service is
+connected.
 
-## Site selection
+## Demo data
 
-Once a tenant and its sites are connected, a single site is selected automatically. When multiple sites are available, the user chooses a site on the device's first visit. The selection is remembered in local browser storage under that tenant ID; a removed or invalid site must be selected again when there are multiple choices. If storage is blocked or cleared, a multi-site user is asked again. When multiple sites are available the header provides a site switcher.
+`lib/demo-fixture.ts` holds the single demo location, its employees, feed items, rewards and
+sample reports. To connect the real database later:
 
-SOS reads only the selected site's configured number. Life Saving Rules come from the selected site's `lifeSavingRules`, and recognition items carry a `siteId` so the gallery displays only the selected site's entries. The UI-only preview has no configured rules, emergency number or recognitions. A future integration must provide a stable tenant ID and enforce tenant and site authorization server-side; browser storage and client-side filtering are not security boundaries.
+1. Replace the fixture with a tenant data source (company, sites, directory, content).
+2. Remove the demo ribbon and the `demo-*` placeholders in `app/page.tsx`.
+3. Delete `public/demo/` sample photos once real attachments are served.
 
-## Portal branding
+## Repository docs
 
-The UI builds the title from the supplied company name as `<Company Name> - Safety Portal`, and uses the shared Safex logo. Without tenant data it displays the generic `Safety Portal` label. The browser title is updated when company data is provided. The current static PWA manifest uses a generic name; a future tenant-aware server manifest is required for company-specific installed app names. No database is connected.
+`docs/` keeps the earlier review and planning notes. They describe the database, RLS and
+multi-tenancy work that was removed from this build and are not used at runtime:
 
-## Offline report queue
-
-The UI includes an IndexedDB queue for reports and attachments, scoped by tenant and site. Saving locally is not a server submission. A company and site must be supplied before a report can be queued; the current preview supplies neither. Anonymous reports omit the employee object, but entered text and photos may still identify a person. Data stored on the device is not encrypted by this app and may be lost if browser storage is cleared or evicted.
-
-There is no server sender in this preview, so queued reports cannot yet be uploaded. A future authenticated, tenant-authorized sender must accept the queue ID as an idempotency key and confirm durable server storage before the queue deletes a report. The retry hook runs at app startup and on an online event while the app is open; it does not provide background sync or offline app-shell caching. Do not use this preview for operational safety reporting.
+- `docs/multi-tenant-review.md` — requirement-vs-reality audit
+- `docs/emveess-data-model.md` — per-table data model for a company
+- `docs/company-onboarding-runbook.md` — onboarding order
+- `docs/supabase-company-record.md` — SQL for a new company record

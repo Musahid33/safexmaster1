@@ -5,50 +5,46 @@ import test from 'node:test';
 const fixture = await readFile(new URL('../lib/demo-fixture.ts', import.meta.url), 'utf8');
 const page = await readFile(new URL('../app/page.tsx', import.meta.url), 'utf8');
 
-test('demo mode exposes three sample locations including a single-site entry', () => {
-  const siteIds = [...fixture.matchAll(/id: '(demo-[a-z]+)'/g)].map((match) => match[1]).filter((id) => ['demo-jsr', 'demo-kal', 'demo-wbd'].includes(id));
-  assert.deepEqual([...new Set(siteIds)].sort(), ['demo-jsr', 'demo-kal', 'demo-wbd']);
+test('demo data is exactly one location: West Bokaro', () => {
+  // One site keeps the review simple: the app has no site picker to fight with.
+  assert.ok(fixture.includes("DEMO_SITE_ID = 'demo-wbd'"), 'demo site id is missing');
+  assert.ok(fixture.includes("name: 'West Bokaro (WBD)'"), 'West Bokaro site is missing');
+  // Every record references the shared constant rather than a second literal site id.
+  // Every record uses the shared constant, so a second location cannot creep back in.
+  assert.equal([...fixture.matchAll(/siteId: 'demo-/g)].length, 0, 'no hardcoded site id expected');
+  assert.ok((fixture.match(/siteId: DEMO_SITE_ID/g) ?? []).length >= 10, 'demo content must reference DEMO_SITE_ID');
+  assert.ok(!fixture.includes('demo-jsr') && !fixture.includes('demo-kal'), 'other demo locations must be gone');
 });
 
 test('demo mode ships a working employee directory', () => {
-  // The lookup is what gates form submission; a throwing directory makes the form unusable.
+  // The lookup gates form submission; a throwing directory makes the form unusable.
   assert.ok(fixture.includes('DEMO_EMPLOYEES'), 'demo employees are missing');
   assert.ok(fixture.includes('demoDirectory'), 'demo directory factory is missing');
   assert.ok(fixture.includes('async search('), 'demo directory cannot search');
   assert.ok(fixture.includes('async findByEmployeeNo('), 'demo directory cannot resolve an exact Employee ID');
 });
 
-test('demo directory records belong to a demo site and use obvious placeholder IDs', () => {
-  const employees = [...fixture.matchAll(/empNo: '([^']+)',[\s\S]{0,120}?siteId: '([^']+)'/g)];
-  assert.ok(employees.length >= 6, 'expected at least six demo employees');
-  for (const [, empNo, siteId] of employees) {
-    assert.match(empNo, /^DEMO-\d{4}$/, `demo employee ID must be a placeholder: ${empNo}`);
-    assert.match(siteId, /^demo-/, `demo employee must belong to a demo site: ${siteId}`);
-  }
+test('demo employees use obvious placeholder IDs', () => {
+  const employees = [...fixture.matchAll(/empNo: '([^']+)'/g)].map((match) => match[1]);
+  assert.ok(employees.length >= 4, 'expected at least four demo employees');
+  for (const empNo of employees) assert.match(empNo, /^DEMO-\d{4}$/, `placeholder ID expected: ${empNo}`);
 });
 
-test('demo mode supplies a tenant ID so reports can be queued', () => {
-  // Without a tenant ID the report form refuses to save, so the review cannot happen.
-  assert.ok(page.includes("DEMO_TENANT_ID = 'demo-tenant'"), 'demo tenant ID is missing');
-  assert.ok(page.includes('const activeTenantId = demoMode ? DEMO_TENANT_ID : tenantId'), 'demo tenant is not wired in');
+test('the frontend runs on demo data with no configuration', () => {
+  // No env var, no query flag: a plain deploy must open the app fully.
+  assert.ok(page.includes('const demoChecked = true'), 'demo readiness must not depend on an env var');
+  assert.ok(page.includes('const displaySites = DEMO_SITES'), 'sites must come from the fixture');
+  assert.ok(page.includes("const activeTenantId = 'demo-tenant'"), 'demo tenant ID is missing');
   assert.ok(page.includes('await queueReport(activeTenantId, currentSite.id, data)'), 'queueing does not use the demo tenant');
+  assert.ok(fixture.includes('DEMO FIXTURE (TEMPORARY)'), 'fixture must stay marked as temporary');
 });
 
-test('demo mode is opt-in per deployment and per visit', () => {
-  // Two gates: the build must allow it (NEXT_PUBLIC_ENABLE_DEMO), and the visitor must ask
-  // for it (?demo=1). Nothing appears by default.
-  assert.ok(page.includes("process.env.NEXT_PUBLIC_ENABLE_DEMO === '1'"), 'demo build flag is missing');
-  assert.ok(page.includes("new URLSearchParams(window.location.search).has('demo')"), 'demo is not opt-in per visit');
-  assert.ok(page.includes('const [demoMode, setDemoMode] = useState(false)'), 'demo mode must start off');
-  assert.ok(fixture.includes('TEMPORARY DEMO FIXTURE'), 'fixture must stay marked as temporary');
+test('no backend or database code remains in the app', () => {
+  assert.ok(!page.includes('@supabase'), 'page must not import a database client');
+  assert.ok(!page.includes('NEXT_PUBLIC_SUPABASE'), 'page must not read database env vars');
 });
 
-test('demo data can never render over a real tenant portal', () => {
-  // tenantId is populated the moment a company resolves from the host or /portal/<slug>.
-  assert.ok(page.includes("if (demoBuildEnabled && !tenantId)"), 'demo guard does not check for a resolved tenant');
-});
-
-test('a demo submission appears in View Reports without touching the database', () => {
+test('a submitted demo report appears in View Reports without touching a database', () => {
   assert.ok(page.includes('setDemoReports('), 'demo report list is not updated after submitting');
-  assert.ok(page.includes('demoReports={demoMode ? demoReports : undefined}'), 'View Reports does not receive the demo list');
+  assert.ok(page.includes('demoReports={demoReports}'), 'View Reports does not receive the demo list');
 });
