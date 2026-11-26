@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react';
 import { forSelectedSite, initialSiteId, siteStorageKey } from '@/lib/site-selection';
-import { DEMO_FEED, DEMO_RECOGNITIONS, DEMO_REPORTS, DEMO_SITES } from '@/lib/demo-fixture';
+import { DEMO_EMPLOYEES, DEMO_FEED, DEMO_RECOGNITIONS, DEMO_REPORTS, DEMO_SITES, demoDirectory } from '@/lib/demo-fixture';
 import { portalName } from '@/lib/portal-branding';
 import { pendingReports, queueReport, syncQueuedReports, type ReportSender } from '@/lib/offline-report-queue';
 import { SAFETY_ALERTS, SAFETY_ALERT_FILTERS, type SafetyAlert, type SafetyAlertCategory } from '@/lib/safety-alerts';
@@ -18,12 +18,12 @@ import { LANGUAGES, LANGUAGE_LOCALE } from '@/lib/i18n';
 import { appendResourceQuery } from '@/lib/safe-url';
 import LanguageStrip from './components/LanguageStrip';
 import { useI18n } from './components/I18nProvider';
-import ReportWorkflow, { type ReportSubmission } from './components/ReportWorkflow';
+import ReportWorkflow, { severityText, type ReportSubmission } from './components/ReportWorkflow';
 import TrainingPortal from './components/TrainingPortal';
 import ProfileSearchDialog from './components/ProfileSearchDialog';
 import { DocumentVaultGrid, type VaultCategoryId, type VaultDocument } from './components/DocumentVault';
 import { VaultShelf } from './components/VaultShelf';
-import LoggedReports from './components/LoggedReports';
+import LoggedReports, { type LoggedReport } from './components/LoggedReports';
 import RewardCarousel, { type RecognitionGalleryItem } from './components/RewardCarousel';
 import { FeedArchivePage, HomeFeedDetailDialog } from './components/HomeFeedViews';
 import { useSafexBootstrap } from './components/useSafexBootstrap';
@@ -86,29 +86,40 @@ function getUpcomingEventStatus(value: string): 'Today' | 'Tomorrow' | 'Upcoming
 export default function SafexHome() {
   const { language, setLanguage, T } = useI18n();
   // Tenant details are supplied by the public portal route when it is configured.
-  const { ready: directoryReady, tenantId, companySlug, sites, directory, companyName, directoryMode, directoryReason, employeeCount } = useSafexBootstrap();
-  // Derive the portal name only from the selected tenant's supplied company name.
-  const brandCompanyName = (companyName ?? '').trim();
-  const company = brandingFor(brandCompanyName);
-  const appName = portalName(companyName);
+  const { ready: directoryReady, directory, directoryMode, directoryReason, employeeCount } = useSafexBootstrap();
   const locale = LANGUAGE_LOCALE[language];
-  // TEMPORARY DEMO MODE: ?demo=1 in the URL (development builds only) runs the home
-  // experience on lib/demo-fixture.ts sample data so site filtering, the View Reports
-  // dropdown and the hero banner can be tested before the database connects. Removed
-  // before production together with the fixture file.
-  const [demoMode, setDemoMode] = useState(false);
-  const [demoChecked, setDemoChecked] = useState(process.env.NODE_ENV !== 'development');
+  /**
+   * FRONTEND-ONLY BUILD. No backend or database is connected, so the app runs on the sample
+   * data in lib/demo-fixture.ts: one demo location (West Bokaro), its employees and content.
+   * Remove the fixture and restore a tenant source when the database is wired back in.
+   */
+  const demoChecked = true;
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [page, setPage] = useState<PageKey>('home');
   const [accountReturnPage, setAccountReturnPage] = useState<PageKey>('home');
   const [reportOrigin, setReportOrigin] = useState<'home' | 'picker'>('home');
   const [recognitions] = useState<RecognitionGalleryItem[] | null>(null);
+  // Demo reports start from the fixture and grow as the review form is submitted, so the
+  // "View Reports" list proves the whole path without a server.
+  const [demoReports, setDemoReports] = useState<LoggedReport[]>(DEMO_REPORTS);
   // Empty preview content for the vault and home feed.
   const [vaultDocuments] = useState<VaultDocument[]>([]);
   const [contentFeed] = useState<HomeFeedItem[]>([]);
-  const displaySites = demoMode ? DEMO_SITES : sites;
-  const displayFeed = demoMode ? DEMO_FEED : contentFeed;
-  const displayRecognitions = demoMode ? DEMO_RECOGNITIONS : recognitions;
+  const displaySites = DEMO_SITES;
+  const displayFeed = DEMO_FEED;
+  const displayRecognitions = DEMO_RECOGNITIONS;
+  /**
+   * Report queueing is tenant-scoped, so the demo uses a fixed placeholder ID. Queued demo
+   * reports therefore never mix with a real tenant's queue once the database is connected.
+   */
+  const activeTenantId = 'demo-tenant';
+  // Local directory so the report form's employee lookup answers without a server.
+  const activeDirectory = useMemo(() => demoDirectory(), []);
+  // Demo company identity until a tenant source supplies the real one.
+  const appCompanyName = 'Emveess (Demo)';
+  const brandCompanyName = (appCompanyName ?? '').trim();
+  const company = brandingFor(brandCompanyName);
+  const appName = portalName(appCompanyName);
   const [siteId, setSiteId] = useState('');
   const [siteReady, setSiteReady] = useState(false);
   const [siteDialog, setSiteDialog] = useState(false);
@@ -205,30 +216,23 @@ export default function SafexHome() {
     };
   }, []);
 
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      if (new URLSearchParams(window.location.search).has('demo')) setDemoMode(true);
-      setDemoChecked(true);
-    }
-  }, []);
-
   // A site choice is remembered on this device for this tenant, not shared across tenants.
   const lastTenantRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!directoryReady || !demoChecked) return;
-    const scopeKey = `${tenantId ?? ''}|${demoMode ? 'demo' : 'live'}`;
+    const scopeKey = activeTenantId;
     if (siteReady && lastTenantRef.current === scopeKey) return;
     lastTenantRef.current = scopeKey;
     let savedId: string | null = null;
-    try { if (tenantId) savedId = localStorage.getItem(siteStorageKey(tenantId)); }
+    try { if (activeTenantId) savedId = localStorage.getItem(siteStorageKey(activeTenantId)); }
     catch { /* Without storage, a multi-site tenant will need to choose again. */ }
     const selectedSite = initialSiteId(savedId, displaySites);
     if (selectedSite) {
       setSiteId(selectedSite);
       setSiteDraft(selectedSite);
       setSiteDialog(false);
-      if (displaySites.length === 1 && tenantId) {
-        try { localStorage.setItem(siteStorageKey(tenantId), selectedSite); } catch { /* The selection still applies for this visit. */ }
+      if (displaySites.length === 1 && activeTenantId) {
+        try { localStorage.setItem(siteStorageKey(activeTenantId), selectedSite); } catch { /* The selection still applies for this visit. */ }
       }
     } else {
       setSiteId('');
@@ -236,18 +240,18 @@ export default function SafexHome() {
       setSiteDialog(true);
     }
     setSiteReady(true);
-  }, [directoryReady, demoChecked, siteReady, displaySites, tenantId, demoMode]);
+  }, [directoryReady, demoChecked, siteReady, displaySites, activeTenantId]);
 
   useEffect(() => {
-    if (!tenantId) { setPendingReportCount(null); return; }
+    if (!activeTenantId) { setPendingReportCount(null); return; }
     let active = true;
     let running = false;
     async function refreshQueue() {
       if (running) return;
       running = true;
       try {
-        if (REPORT_SENDER && navigator.onLine) await syncQueuedReports(tenantId!, REPORT_SENDER);
-        const entries = await pendingReports(tenantId!);
+        if (REPORT_SENDER && navigator.onLine) await syncQueuedReports(activeTenantId!, REPORT_SENDER);
+        const entries = await pendingReports(activeTenantId!);
         if (active) setPendingReportCount(entries.length);
       } catch { if (active) setPendingReportCount(null); }
       finally { running = false; }
@@ -255,7 +259,7 @@ export default function SafexHome() {
     void refreshQueue();
     window.addEventListener('online', refreshQueue);
     return () => { active = false; window.removeEventListener('online', refreshQueue); };
-  }, [tenantId]);
+  }, [activeTenantId]);
 
   useEffect(() => { document.title = appName; }, [appName]);
 
@@ -345,7 +349,7 @@ export default function SafexHome() {
     if (!valid) return;
     setSiteId(valid.id);
     setSiteDraft(valid.id);
-    try { if (tenantId) localStorage.setItem(siteStorageKey(tenantId), valid.id); } catch { /* Choice lasts only until this page is closed. */ }
+    try { if (activeTenantId) localStorage.setItem(siteStorageKey(activeTenantId), valid.id); } catch { /* Choice lasts only until this page is closed. */ }
     setLifeRuleOpen(false);
     setLifeRuleSite(null);
     setSosOpen(false);
@@ -439,13 +443,37 @@ export default function SafexHome() {
   }
 
   async function submitReport(data: ReportSubmission) {
-    if (!tenantId || !currentSite) throw new Error('Reports cannot be saved until company and site data are connected.');
-    await queueReport(tenantId, currentSite.id, data);
+    if (!activeTenantId || !currentSite) throw new Error('Reports cannot be saved until company and site data are connected.');
+    await queueReport(activeTenantId, currentSite.id, data);
+    {
+      // Show the review report straight away in "View Reports". In-memory only: it is
+      // never sent anywhere and disappears on reload, which keeps demo data out of the DB.
+      const nextIndex = demoReports.length + 1;
+      setDemoReports((current) => [{
+        reference: `${data.type === 'Hazard' ? 'HZ' : data.type === 'Near Miss' ? 'NM' : 'SO'}-DEMO${String(nextIndex).padStart(2, '0')}`,
+        type: data.type,
+        siteId: currentSite.id,
+        siteName: currentSite.name,
+        category: data.category,
+        area: data.area,
+        department: data.department,
+        severity: data.severity === null ? null : severityText(data.severity),
+        occurredAt: data.incidentAt,
+        filedAt: new Date().toISOString(),
+        status: 'Open',
+        summary: data.description.length > 90 ? `${data.description.slice(0, 90)}…` : data.description,
+        description: data.description,
+        immediateAction: data.immediateAction || null,
+        reporterName: data.anonymous ? null : data.employee?.name ?? null,
+        hasPhoto: Boolean(data.photo),
+        photoUrl: null
+      }, ...current]);
+    }
     setReportType(null);
     setToast({ key: 'Saved on this device. Not sent to the server.' });
     // Once a server sender is configured, retry when online; records remain until acknowledged.
-    if (REPORT_SENDER && navigator.onLine) await syncQueuedReports(tenantId, REPORT_SENDER);
-    try { setPendingReportCount((await pendingReports(tenantId)).length); }
+    if (REPORT_SENDER && navigator.onLine) await syncQueuedReports(activeTenantId, REPORT_SENDER);
+    try { setPendingReportCount((await pendingReports(activeTenantId)).length); }
     catch { setPendingReportCount(null); }
   }
 
@@ -494,7 +522,7 @@ export default function SafexHome() {
   return (
     <div className="safex-app">
       <div role="status" style={{ background: "#fff4d6", color: "#513900", textAlign: "center", padding: "8px 12px", fontSize: 13 }}>UI preview only · No live data or server report submissions{pendingReportCount ? ` · ${pendingReportCount} report(s) saved on this device, not sent` : ''}</div>
-      {demoMode && <div role="status" className="demo-ribbon">DEMO MODE · sample sites, stats, events &amp; reports (temporary — removed before production)</div>}
+      <div role="status" className="demo-ribbon">DEMO DATA · West Bokaro sample location, employees &amp; reports · nothing is saved to a database yet</div>
       <div className="site-header-shell">
         <header className="topbar">
           <div className="topbar-inner">
@@ -658,7 +686,7 @@ export default function SafexHome() {
 
         {page === 'reports' && <section className="page-panel">
           <div className="page-heading"><div><span className="eyebrow">{currentSite?.name ?? T('SITE')}</span><h1>{T('reportsTitle')}</h1></div>{!isSingleSite && <button type="button" className="secondary-button" onClick={() => openSitePicker('reports')}>{T('changeSite')}</button>}</div>
-          <LoggedReports sites={displaySites} selectedSiteId={siteId} demoReports={demoMode ? DEMO_REPORTS : undefined} />
+          <LoggedReports sites={displaySites} selectedSiteId={siteId} demoReports={demoReports} />
         </section>}
 
         {page === 'alerts' && <FeedArchivePage kind="notices" siteName={currentSite?.name ?? T('Selected site')} items={siteFeed} onOpenItem={setFeedDetail} onBack={() => setPage('home')} />}
@@ -702,7 +730,7 @@ export default function SafexHome() {
         {page === 'install' && <InstallAppPage company={company} canInstall={Boolean(installPrompt)} installMessage={installMessage} onInstall={installApp} onBack={() => setPage('more')} />}
 
         {page === 'company' && <CompanyAboutPage profile={null} onBack={() => setPage('more')} />}
-        {page === 'account' && <AccountManagementPage companySlug={companySlug} onBack={() => setPage(accountReturnPage)} />}
+        {page === 'account' && <AccountManagementPage onBack={() => setPage(accountReturnPage)} />}
         {page === 'aboutApp' && <AboutAppPage company={company} onBack={() => setPage('more')} onOpenInfo={setMoreInfoKind} />}
       </main>
 
@@ -832,8 +860,8 @@ export default function SafexHome() {
         </div>
       </div>}
 
-      {reportType && currentSite && <ReportWorkflow key={`${reportType}-${currentSite.id}`} type={reportType} site={currentSite} directory={directory} language={language} onLanguageChange={setLanguage} voiceEnabled={APP_FEATURES.voiceReporting} onBack={backFromReport} onClose={() => setReportType(null)} onSubmit={submitReport} />}
-      {profileSearchOpen && <ProfileSearchDialog site={currentSite} sites={displaySites} companyName={companyName} directory={directory} directoryMode={directoryMode} directoryReason={directoryReason} employeeCount={employeeCount} autoEmployeeId={qrEmployeeId ?? undefined} onClose={() => { setProfileSearchOpen(false); setQrEmployeeId(null); }} />}
+      {reportType && currentSite && <ReportWorkflow key={`${reportType}-${currentSite.id}`} type={reportType} site={currentSite} directory={activeDirectory} language={language} onLanguageChange={setLanguage} voiceEnabled={APP_FEATURES.voiceReporting} onBack={backFromReport} onClose={() => setReportType(null)} onSubmit={submitReport} />}
+      {profileSearchOpen && <ProfileSearchDialog site={currentSite} sites={displaySites} companyName={appCompanyName} directory={activeDirectory} directoryMode="supabase" directoryReason={null} employeeCount={DEMO_EMPLOYEES.length} autoEmployeeId={qrEmployeeId ?? undefined} onClose={() => { setProfileSearchOpen(false); setQrEmployeeId(null); }} />}
       {moreInfoKind && <MoreInfoDialog kind={moreInfoKind} company={company} onClose={() => setMoreInfoKind(null)} onLogin={() => { setMoreInfoKind(null); setToast({ key: 'Login is unavailable in the UI preview.' }); }} />}
 
 
