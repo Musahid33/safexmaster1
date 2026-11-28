@@ -75,15 +75,12 @@ export type Employee = {
   name: string;
   designation: string;
   siteId: string;
-  /** Non-sensitive work context released by the server lookup. Absent when unavailable. */
+  /** Non-sensitive work context shown on the passport badge. */
   department?: string | null;
   skillGrade?: string | null;
-  /**
-   * Safety credential number. Only present when the deployment has explicitly opted in
-   * with the server-only SAFEX_PUBLIC_SAFETY_PASS flag; never returned by default.
-   */
+  /** Safety credential number, when the directory source exposes it. */
   safetyPassNo?: string | null;
-  /** The public lookup only matches active employees; carried through for the badge. */
+  /** Only active employees are matched by the lookup; carried through for the badge. */
   active?: boolean;
 };
 export type ThemeMode = 'system' | 'light' | 'dark';
